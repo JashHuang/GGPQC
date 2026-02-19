@@ -1,0 +1,6 @@
+{
+  "appId": "com.jash.goodmorning",
+  "appName": "GoodMorning",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
