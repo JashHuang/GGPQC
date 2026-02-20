@@ -1,24 +1,37 @@
-# React + Vite
+# 早安圖產生器 (Good Morning Generator)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+一個專基於 React + Vite 開發的跨平台工具，旨在幫助使用者快速、輕鬆地製作精美的「早安圖」、「晚安圖」或各類語錄圖案。
 
-Currently, two official plugins are available:
+## 🌟 核心功能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **多樣化字體與語錄**：內置數十種特色字體與數百句智慧語錄（包括一般問候、智慧語錄、聖嚴法師/證嚴法師法語等）。
+- **視覺化編輯**：直觀的畫布操作，支援文字塊的拖拽定位、縮放與自動對齊邊線。
+- **個性化風格**：可自定義文字填充顏色、邊框顏色、字體樣式。支援建立多個「用戶帳號」來儲存不同的偏好設定。
+- **跨平台支援**：一份程式碼，同時支援 Web 瀏覽器與行動端 (Android)。
+- **靈活操作**：支援復原 (Undo) / 重做 (Redo) 功能，確保創作過程無憂。
 
-## React Compiler
+## 🚀 技術棧
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **前端框架**：React 19, Vite
+- **樣式設計**：Tailwind CSS 4
+- **跨平台包裝**：
+  - **行動端**：Capacitor (支援製作 Android App)
+- **畫布引擎**：原生 HTML5 Canvas 結合 React 狀態管理
 
-## Expanding the ESLint configuration
+## 🛠️ 開發與建置
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 啟動開發環境
 
-## Packaging Targets
+```bash
+# 啟動 Web 開發伺服器
+npm run dev
+```
 
-- Linux AppImage: `npm run electron:build:linux`
-- Windows Portable: `npm run electron:build:win`
-- Linux + Windows: `npm run electron:build`
-- Android sync/build (Capacitor): `npm run android:build`
-- Open Android Studio: `npm run android:open`
+
+## 📁 資源目錄說明
+
+- `public/wisdom`: 存放問候語與語錄文本檔案 (.txt, .csv)。
+
+---
+
+*Made with ❤️ for sharing love and wisdom every morning.*

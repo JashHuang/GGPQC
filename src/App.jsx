@@ -1,5 +1,5 @@
 import './App.css'
-import GoodMorningGenerator from './good-morning-generator-V5';
+import GoodMorningGenerator from './good-morning-generator';
 
 function App() {
   return <GoodMorningGenerator />;
