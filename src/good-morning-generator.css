@@ -586,10 +586,21 @@
   }
 
   .gm5-canvas-wrap {
-    padding: 2px;
-    max-height: 58vh;
+    padding: 0px;
     min-height: 280px;
     background-size: 12px 12px;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    background-color: rgba(0, 0, 0, 0.02);
+    border-radius: 8px;
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .gm5-canvas-stage {
+    margin: 10px;
   }
 
   .gm5-mobile-bottom-tools {

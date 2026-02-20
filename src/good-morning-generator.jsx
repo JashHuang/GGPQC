@@ -146,9 +146,51 @@ const GoodMorningGeneratorV5 = () => {
   const [isMobileDrawerExpanded, setIsMobileDrawerExpanded] = useState(true);
 
   const selectionSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const maxZoom = 180;
-  const minZoom = 30;
+  const maxZoom = 250;
+  const minZoom = 10;
   const snapThreshold = 10;
+
+  const fitToScreen = useCallback(() => {
+    if (!wrapRef.current || !canvasRef.current) return;
+    
+    const isMobile = window.innerWidth <= 1120;
+    
+    // 取得元件實際可用長寬
+    const containerWidth = wrapRef.current.clientWidth;
+    
+    // 動態計算可用高度：總高度 - (Header高度 + Toolbar高度 + 底部工具列高度)
+    let availableHeight = isMobile 
+      ? window.innerHeight - 260 // 手機版保留大約 260px 給 Header、頂部工具列及底部 Drawer
+      : window.innerHeight - wrapRef.current.getBoundingClientRect().top - 40;
+      
+    // 避免負數或極端小值
+    availableHeight = Math.max(availableHeight, 280);
+
+    // 預留適當邊距
+    const padX = isMobile ? 16 : 40;
+    const padY = isMobile ? 16 : 40;
+    
+    const targetW = containerWidth - padX;
+    const targetH = availableHeight - padY;
+
+    // 計算縮放比例
+    const zoomW = (targetW / canvasSize.width) * 100;
+    const zoomH = (targetH / canvasSize.height) * 100;
+    
+    let bestZoom = Math.min(zoomW, zoomH);
+    
+    // 桌面版不自動放大，手機版則可允許填滿
+    if (!isMobile) bestZoom = Math.min(bestZoom, 100);
+    
+    setZoom(clamp(Math.floor(bestZoom), minZoom, maxZoom));
+  }, [canvasSize.width, canvasSize.height, minZoom, maxZoom]);
+
+  useEffect(() => {
+    // 延遲執行以確保 DOM 已完成渲染與佈局計算
+    const timer = setTimeout(fitToScreen, 100);
+    window.addEventListener('resize', fitToScreen);
+    return () => window.removeEventListener('resize', fitToScreen);
+  }, [fitToScreen]);
 
   // Sync theme
   useEffect(() => {
@@ -348,20 +390,6 @@ const GoodMorningGeneratorV5 = () => {
       });
     } else { setTimeout(() => setFontsLoaded(true), 1500); }
   }, []);
-
-  // Responsive zoom
-  useEffect(() => {
-    const fit = () => {
-      if (!wrapRef.current) return;
-      const aw = Math.max(wrapRef.current.clientWidth - 28, 360);
-      const ah = Math.max(window.innerHeight - 320, 360);
-      const scale = Math.min(aw / canvasSize.width, ah / canvasSize.height);
-      setZoom(clamp(Math.round(scale * 100), minZoom, maxZoom));
-    };
-    fit();
-    window.addEventListener('resize', fit);
-    return () => window.removeEventListener('resize', fit);
-  }, [canvasSize.width, canvasSize.height]);
 
   const generateRandomQuote = useCallback(() => {
     const current = wisdomCategories[selectedCategory];
@@ -834,6 +862,7 @@ const GoodMorningGeneratorV5 = () => {
                 <div className="w-[1px] h-6 bg-gray-200 mx-1 hidden sm:block" />
                 <button className={`gm5-btn ${showGrid ? 'gm5-btn-primary' : 'gm5-btn-soft'} px-3`} onClick={() => setShowGrid(!showGrid)}>網格</button>
                 <button className="gm5-btn gm5-btn-danger px-3" onClick={deleteSelected} disabled={!selectedIds.length}>刪除</button>
+                <button className="gm5-btn gm5-btn-soft px-3" onClick={fitToScreen}>適配</button>
                 <button className="gm5-btn gm5-btn-primary px-3 ml-auto shadow-sm" onClick={saveImage}><Download /><span>載出</span></button>
               </div>
               <div className="gm5-row mt-2 sm:mt-0">
