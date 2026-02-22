@@ -10,6 +10,11 @@ const DEFAULT_WISDOM_PATH = 'wisdom/';
 const BUILTIN_FONTS = [
   { name: '思源黑體 (TC)', family: '"Noto Sans TC", sans-serif' },
   { name: '思源宋體 (TC)', family: '"Noto Serif TC", serif' },
+  { name: '思源黑體 (HK)', family: '"Noto Sans HK", sans-serif' },
+  { name: '思源宋體 (HK)', family: '"Noto Serif HK", serif' },
+  { name: '昭源宋體 (HK)', family: '"Chiron Sung HK", serif' },
+  { name: '昭源圓體 (TC)', family: '"Chiron GoRound TC", sans-serif' },
+  { name: '昭源黑體 (HK)', family: '"Chiron Hei HK", sans-serif' },
   { name: '霞鶩文楷 (TC)', family: '"LXGW WenKai TC", sans-serif' },
   { name: '霞鶩文楷等寬 (TC)', family: '"LXGW WenKai Mono TC", monospace' },
   { name: '馬善政楷體', family: '"Ma Shan Zheng", cursive' },
@@ -44,6 +49,8 @@ const DEFAULT_USER_STYLE_SETTINGS = {
   greetingStrokeColor: '#8d4a16',
   wisdomFillColor: '#f8f7ff',
   wisdomStrokeColor: '#25526b',
+  greetingWeight: 400,
+  wisdomWeight: 400,
 };
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
@@ -79,11 +86,11 @@ const Redo = () => (
 const ThemeSelector = ({ current, onSelect }) => (
   <div className="theme-selector">
     {['light', 'dark', 'sunset', 'forest'].map(t => (
-      <div 
-        key={t} 
-        className={`theme-opt opt-${t} ${current === t ? 'active' : ''}`} 
-        onClick={() => onSelect(t)} 
-        title={t} 
+      <div
+        key={t}
+        className={`theme-opt opt-${t} ${current === t ? 'active' : ''}`}
+        onClick={() => onSelect(t)}
+        title={t}
       />
     ))}
   </div>
@@ -125,6 +132,8 @@ const GoodMorningGeneratorV5 = () => {
   const [greetingStrokeColor, setGreetingStrokeColor] = useState(DEFAULT_USER_STYLE_SETTINGS.greetingStrokeColor);
   const [wisdomFillColor, setWisdomFillColor] = useState(DEFAULT_USER_STYLE_SETTINGS.wisdomFillColor);
   const [wisdomStrokeColor, setWisdomStrokeColor] = useState(DEFAULT_USER_STYLE_SETTINGS.wisdomStrokeColor);
+  const [greetingWeight, setGreetingWeight] = useState(DEFAULT_USER_STYLE_SETTINGS.greetingWeight);
+  const [wisdomWeight, setWisdomWeight] = useState(DEFAULT_USER_STYLE_SETTINGS.wisdomWeight);
   const [activeUser, setActiveUser] = useState(DEFAULT_USER_NAME);
   const [userOptions, setUserOptions] = useState([DEFAULT_USER_NAME]);
   const [newUserName, setNewUserName] = useState('');
@@ -142,6 +151,7 @@ const GoodMorningGeneratorV5 = () => {
   const [signatureImage, setSignatureImage] = useState(null);
   const [disabledPresetFonts, setDisabledPresetFonts] = useState([]);
   const [theme, setTheme] = useState(() => localStorage.getItem(THEME_STORAGE_KEY) || 'light');
+  const [activeSidebarTab, setActiveSidebarTab] = useState('text');
   const [activeMobileTab, setActiveMobileTab] = useState('tool');
   const [isMobileDrawerExpanded, setIsMobileDrawerExpanded] = useState(true);
 
@@ -152,36 +162,36 @@ const GoodMorningGeneratorV5 = () => {
 
   const fitToScreen = useCallback(() => {
     if (!wrapRef.current || !canvasRef.current) return;
-    
+
     const isMobile = window.innerWidth <= 1120;
-    
+
     // 取得元件實際可用長寬
     const containerWidth = wrapRef.current.clientWidth;
-    
+
     // 動態計算可用高度：總高度 - (Header高度 + Toolbar高度 + 底部工具列高度)
-    let availableHeight = isMobile 
+    let availableHeight = isMobile
       ? window.innerHeight - 260 // 手機版保留大約 260px 給 Header、頂部工具列及底部 Drawer
       : window.innerHeight - wrapRef.current.getBoundingClientRect().top - 40;
-      
+
     // 避免負數或極端小值
     availableHeight = Math.max(availableHeight, 280);
 
     // 預留適當邊距
     const padX = isMobile ? 16 : 40;
     const padY = isMobile ? 16 : 40;
-    
+
     const targetW = containerWidth - padX;
     const targetH = availableHeight - padY;
 
     // 計算縮放比例
     const zoomW = (targetW / canvasSize.width) * 100;
     const zoomH = (targetH / canvasSize.height) * 100;
-    
+
     let bestZoom = Math.min(zoomW, zoomH);
-    
+
     // 桌面版不自動放大，手機版則可允許填滿
     if (!isMobile) bestZoom = Math.min(bestZoom, 100);
-    
+
     setZoom(clamp(Math.floor(bestZoom), minZoom, maxZoom));
   }, [canvasSize.width, canvasSize.height, minZoom, maxZoom]);
 
@@ -267,7 +277,8 @@ const GoodMorningGeneratorV5 = () => {
     setTextBlocks(next);
   }, [textBlocks, pushHistory]);
 
-  const syncSelectedByType = useCallback((type, patch) => {
+  const syncSelectedByType = useCallback((type, patch, options = {}) => {
+    const { recordHistory: shouldRecord = true } = options;
     if (!selectedIds.length) return;
     const before = textBlocks;
     const next = before.map((block) => {
@@ -276,7 +287,7 @@ const GoodMorningGeneratorV5 = () => {
     });
     const changed = next.some((b, i) => b !== before[i]);
     if (!changed) return;
-    pushHistory(before);
+    if (shouldRecord) pushHistory(before);
     setTextBlocks(next);
   }, [selectedIds.length, selectionSet, textBlocks, pushHistory]);
 
@@ -290,6 +301,8 @@ const GoodMorningGeneratorV5 = () => {
     setGreetingStrokeColor(settings.greetingStrokeColor ?? DEFAULT_USER_STYLE_SETTINGS.greetingStrokeColor);
     setWisdomFillColor(settings.wisdomFillColor ?? DEFAULT_USER_STYLE_SETTINGS.wisdomFillColor);
     setWisdomStrokeColor(settings.wisdomStrokeColor ?? DEFAULT_USER_STYLE_SETTINGS.wisdomStrokeColor);
+    setGreetingWeight(settings.greetingWeight ?? DEFAULT_USER_STYLE_SETTINGS.greetingWeight);
+    setWisdomWeight(settings.wisdomWeight ?? DEFAULT_USER_STYLE_SETTINGS.wisdomWeight);
   }, [allFonts]);
 
   const readStoredUsers = useCallback(() => {
@@ -327,10 +340,12 @@ const GoodMorningGeneratorV5 = () => {
       greetingStrokeColor,
       wisdomFillColor,
       wisdomStrokeColor,
+      greetingWeight,
+      wisdomWeight,
     };
     localStorage.setItem(USER_SETTINGS_STORAGE_KEY, JSON.stringify({ users: nextUsers }));
     localStorage.setItem(ACTIVE_USER_STORAGE_KEY, activeUser);
-  }, [settingsReady, readStoredUsers, activeUser, greetingFont, wisdomFont, greetingFillColor, greetingStrokeColor, wisdomFillColor, wisdomStrokeColor]);
+  }, [settingsReady, readStoredUsers, activeUser, greetingFont, wisdomFont, greetingFillColor, greetingStrokeColor, wisdomFillColor, wisdomStrokeColor, greetingWeight, wisdomWeight]);
 
   const handleSwitchUser = (userName) => {
     const { users } = readStoredUsers();
@@ -417,6 +432,8 @@ const GoodMorningGeneratorV5 = () => {
       font: type === 'greeting' ? greetingFont : wisdomFont,
       fillColor: type === 'greeting' ? greetingFillColor : wisdomFillColor,
       strokeColor: type === 'greeting' ? greetingStrokeColor : wisdomStrokeColor,
+      fontWeight: type === 'greeting' ? greetingWeight : wisdomWeight,
+      hasStroke: true,
     };
     pushHistory(textBlocks);
     setTextBlocks(prev => [...prev, block]);
@@ -496,13 +513,13 @@ const GoodMorningGeneratorV5 = () => {
     });
   };
 
-  const calculateFontSize = useCallback((ctx, text, w, h, font) => {
+  const calculateFontSize = useCallback((ctx, text, w, h, font, weight = 400) => {
     const area = (w * h) / 1.55;
     let size = 12;
     const f = font.includes('"') || font.includes(',') ? font : `"${font}"`;
     while (size < 140) {
       size++;
-      ctx.font = `${size}px ${f}`;
+      ctx.font = `${weight} ${size}px ${f}`;
       if (ctx.measureText(text || '字').width * (size * 1.22) > area) break;
     }
     return Math.max(size - 4, 12);
@@ -519,7 +536,7 @@ const GoodMorningGeneratorV5 = () => {
       } else { cur += char; }
     });
     if (cur) lines.push(cur);
-    
+
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.imageSmoothingQuality = 'high';
@@ -529,15 +546,12 @@ const GoodMorningGeneratorV5 = () => {
     lines.forEach((l, i) => {
       const x = Math.round(b.x + p);
       const y = Math.round(b.y + p + i * fontSize * 1.28);
-      
-      // 使用微小陰影達成反鋸齒效果
-      ctx.shadowColor = b.strokeColor;
-      ctx.shadowBlur = 1.2;
-      ctx.strokeStyle = b.strokeColor;
-      ctx.strokeText(l, x, y);
-      
-      // 繪製填色時關閉陰影以免影響字體清晰度
-      ctx.shadowBlur = 0;
+
+      if (b.hasStroke !== false) {
+        ctx.strokeStyle = b.strokeColor;
+        ctx.strokeText(l, x, y);
+      }
+
       ctx.fillStyle = b.fillColor;
       ctx.fillText(l, x, y);
     });
@@ -548,7 +562,7 @@ const GoodMorningGeneratorV5 = () => {
     const p = 12;
     const cw = ctx.measureText('測').width;
     let x = b.x + b.width - p - cw, y = b.y + p;
-    
+
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.imageSmoothingQuality = 'high';
@@ -558,19 +572,18 @@ const GoodMorningGeneratorV5 = () => {
     (b.text || '').split('').forEach(char => {
       if (y + fontSize > b.y + b.height - p) { y = b.y + p; x -= cw + sp; }
       if (x < b.x + p) return;
-      
+
       const rx = Math.round(x);
       const ry = Math.round(y);
-      
-      ctx.shadowColor = b.strokeColor;
-      ctx.shadowBlur = 1.2;
-      ctx.strokeStyle = b.strokeColor;
-      ctx.strokeText(char, rx, ry);
-      
-      ctx.shadowBlur = 0;
+
+      if (b.hasStroke !== false) {
+        ctx.strokeStyle = b.strokeColor;
+        ctx.strokeText(char, rx, ry);
+      }
+
       ctx.fillStyle = b.fillColor;
       ctx.fillText(char, rx, ry);
-      
+
       y += fontSize + sp;
     });
   }, []);
@@ -606,8 +619,9 @@ const GoodMorningGeneratorV5 = () => {
         if (signatureImage && signatureImage.src === b.data) ctx.drawImage(signatureImage, b.x, b.y, b.width, b.height);
         else { const i = new Image(); i.onload = () => { setSignatureImage(i); setHistoryVersion(v => v + 1); }; i.src = b.data; }
       } else {
-        const size = calculateFontSize(ctx, b.text, b.width, b.height, font);
-        ctx.font = `${size}px ${font}`; ctx.textBaseline = 'top';
+        const weight = b.fontWeight || 400;
+        const size = calculateFontSize(ctx, b.text, b.width, b.height, font, weight);
+        ctx.font = `${weight} ${size}px ${font}`; ctx.textBaseline = 'top';
         if (b.height > b.width) drawVertical(ctx, b, size); else drawHorizontal(ctx, b, size);
       }
       ctx.restore();
@@ -631,10 +645,10 @@ const GoodMorningGeneratorV5 = () => {
     const rect = canvasRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) * (canvasSize.width / rect.width);
     const y = (e.clientY - rect.top) * (canvasSize.height / rect.height);
-    
+
     // 找出最上層的物件
     const hit = [...textBlocks].reverse().find(b => b.visible !== false && x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height);
-    
+
     if (!hit || hit.locked) {
       canvasRef.current.style.cursor = 'default';
       return;
@@ -648,7 +662,7 @@ const GoodMorningGeneratorV5 = () => {
         if (h === 'tr' || h === 'bl') { canvasRef.current.style.cursor = 'nesw-resize'; return; }
       }
     }
-    
+
     canvasRef.current.style.cursor = 'move';
   };
 
@@ -662,18 +676,46 @@ const GoodMorningGeneratorV5 = () => {
   }, [snapThreshold]);
 
   const startPointer = (e) => {
+    // 支援 Touch 兩指縮放
+    if (e.touches && e.touches.length === 2) {
+      if (e.cancelable) e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      setZoom((currentZoom) => {
+        dragRef.current = {
+          mode: 'pinch',
+          startDist: dist,
+          startZoom: currentZoom,
+          selectedIds: [],
+          snapshotById: new Map(),
+          startX: 0,
+          startY: 0,
+          handle: null
+        };
+        return currentZoom;
+      });
+      return;
+    }
+
     // 支援 Touch 事件
     const pointer = e.touches ? e.touches[0] : e;
     const rect = canvasRef.current.getBoundingClientRect();
     const x = (pointer.clientX - rect.left) * (canvasSize.width / rect.width);
     const y = (pointer.clientY - rect.top) * (canvasSize.height / rect.height);
-    
-    // 如果是觸控，防止頁面捲動
-    if (e.touches && e.cancelable) e.preventDefault();
 
     const multi = e.shiftKey || e.ctrlKey || e.metaKey;
     const hit = [...textBlocks].reverse().find(b => b.visible !== false && x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height);
-    if (!hit) { setSelectedIds([]); setPrimaryId(null); return; }
+
+    if (!hit) {
+      setSelectedIds([]);
+      setPrimaryId(null);
+      return;
+    }
+
+    // 如果是觸控且有按到物件，防止原生捲動（保護物件拖曳不會連同網頁一起滑）
+    if (e.touches && e.cancelable) e.preventDefault();
     if (!hit.locked && selectedIds.length === 1 && primaryId === hit.id) {
       const h = getHandle(hit, x, y);
       if (h) {
@@ -700,12 +742,25 @@ const GoodMorningGeneratorV5 = () => {
     const d = dragRef.current;
     if (!d.mode || !canvasRef.current) return;
 
+    // 處理兩指縮放
+    if (d.mode === 'pinch' && e.touches && e.touches.length >= 2) {
+      if (e.cancelable) e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const ratio = dist / d.startDist;
+
+      const newZoom = clamp(Math.round(d.startZoom * ratio), minZoom, maxZoom);
+      setZoom(newZoom);
+      return;
+    }
+
     // 支援 Touch 事件
     const pointer = e.touches ? e.touches[0] : e;
     const rect = canvasRef.current.getBoundingClientRect();
     const x = (pointer.clientX - rect.left) * (canvasSize.width / rect.width);
     const y = (pointer.clientY - rect.top) * (canvasSize.height / rect.height);
-    
+
     // 防止觸戴下的頁面干擾
     if (e.touches && e.cancelable) e.preventDefault();
 
@@ -738,7 +793,7 @@ const GoodMorningGeneratorV5 = () => {
         return { ...b, x: nx, y: ny, width: nw, height: nh };
       }));
     }
-  }, [canvasSize, primaryId, textBlocks, getSnap]);
+  }, [canvasSize, primaryId, textBlocks, getSnap, minZoom, maxZoom]);
 
   const endPointer = useCallback(() => {
     dragRef.current = { mode: null, startX: 0, startY: 0, handle: null, selectedIds: [], snapshotById: new Map() };
@@ -751,22 +806,37 @@ const GoodMorningGeneratorV5 = () => {
     setTextBlocks(prev => prev.map(b => selectionSet.has(b.id) && !b.locked ? { ...b, x: clamp(b.x + dx, 0, canvasSize.width - b.width), y: clamp(b.y + dy, 0, canvasSize.height - b.height) } : b));
   }, [selectedIds.length, selectionSet, textBlocks, pushHistory, canvasSize]);
 
+  const handleWheel = useCallback((e) => {
+    e.preventDefault();
+    if (e.deltaY !== 0) {
+      setZoom((prev) => clamp(prev - (e.deltaY > 0 ? 5 : -5), minZoom, maxZoom));
+    }
+  }, [minZoom, maxZoom]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
-    window.addEventListener('mousemove', movePointer); 
+    window.addEventListener('mousemove', movePointer);
     window.addEventListener('mouseup', endPointer);
     window.addEventListener('touchmove', movePointer, { passive: false });
     window.addEventListener('touchend', endPointer);
-    if (canvas) canvas.addEventListener('touchstart', startPointer, { passive: false });
-    
-    return () => { 
-      window.removeEventListener('mousemove', movePointer); 
-      window.removeEventListener('mouseup', endPointer); 
+    window.addEventListener('touchcancel', endPointer);
+    if (canvas) {
+      canvas.addEventListener('touchstart', startPointer, { passive: false });
+      canvas.addEventListener('wheel', handleWheel, { passive: false });
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', movePointer);
+      window.removeEventListener('mouseup', endPointer);
       window.removeEventListener('touchmove', movePointer);
       window.removeEventListener('touchend', endPointer);
-      if (canvas) canvas.removeEventListener('touchstart', startPointer);
+      window.removeEventListener('touchcancel', endPointer);
+      if (canvas) {
+        canvas.removeEventListener('touchstart', startPointer);
+        canvas.removeEventListener('wheel', handleWheel);
+      }
     };
-  }, [movePointer, endPointer]);
+  }, [movePointer, endPointer, handleWheel]);
 
   useEffect(() => {
     const down = (e) => {
@@ -790,14 +860,23 @@ const GoodMorningGeneratorV5 = () => {
         <header className="gm5-header">
           <div className="gm5-header-content">
             <h1>早安圖產生器</h1>
-            <p>製作問候圖</p>
+          </div>
+          <div className="gm5-header-center hidden md:flex items-center">
+            <div className="gm5-row space-x-1">
+              <button className="gm5-btn gm5-btn-soft p-2 min-w-0" onClick={undo} disabled={historyRef.current.length === 0} title="復原"><Undo /></button>
+              <button className="gm5-btn gm5-btn-soft p-2 min-w-0" onClick={redo} disabled={futureRef.current.length === 0} title="重做"><Redo /></button>
+              <div className="w-[1px] h-6 bg-gray-200 mx-2" />
+              <button className={`gm5-btn ${showGrid ? 'gm5-btn-primary' : 'gm5-btn-soft'} px-3`} onClick={() => setShowGrid(!showGrid)}>網格</button>
+              <button className="gm5-btn gm5-btn-soft px-3" onClick={fitToScreen}>適配畫布</button>
+            </div>
           </div>
           <div className="gm5-header-side">
             <ThemeSelector current={theme} onSelect={setTheme} />
-            <div className="gm5-header-actions">
+            <button className="gm5-btn gm5-btn-primary px-4 ml-2 shadow-sm" onClick={saveImage}><Download /><span className="ml-1 hidden sm:inline">下載</span></button>
+            <div className="gm5-header-actions hidden sm:flex">
               <div className="gm5-user-menu">
                 <details><summary className="gm5-btn gm5-btn-soft"><span>{activeUser}</span></summary>
-                  <div className="gm5-user-panel p-6">
+                  <div className="gm5-user-panel">
                     <div className="space-y-4">
                       <h3 className="text-sm font-bold uppercase text-gray-500">切換使用者</h3>
                       <div className="flex flex-col gap-2">{userOptions.map(u => <button key={u} onClick={() => handleSwitchUser(u)} className={`gm5-btn ${activeUser === u ? 'gm5-btn-primary' : 'gm5-btn-soft'}`}>{u}</button>)}</div>
@@ -816,67 +895,131 @@ const GoodMorningGeneratorV5 = () => {
 
         <main className="gm5-main">
           <aside className="gm5-sidebar">
-            {/* ... 側邊欄內容保持不變 ... */}
-            <div className="gm5-card"><h2>素材工具</h2>
-              <label className="gm5-upload"><input type="file" accept="image/*" onChange={handleImageUpload} /><span>上傳底圖</span></label>
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                <button className="gm5-btn gm5-btn-soft" onClick={() => addTextBlock('greeting')}>+ 問候語</button>
-                <button className="gm5-btn gm5-btn-soft" onClick={() => addTextBlock('wisdom')}>+ 智慧語</button>
-                <button className="gm5-btn gm5-btn-soft" onClick={() => setIsFontManagerOpen(true)}>字型管理</button>
-                <button className="gm5-btn gm5-btn-soft" onClick={() => setIsSignatureManagerOpen(true)}>簽名管理</button>
-              </div>
+            <div className="gm5-sidebar-narrow">
+              <button className={`gm5-nav-btn ${activeSidebarTab === 'design' ? 'is-active' : ''}`} onClick={() => setActiveSidebarTab('design')}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                背景
+              </button>
+              <button className={`gm5-nav-btn ${activeSidebarTab === 'text' ? 'is-active' : ''}`} onClick={() => setActiveSidebarTab('text')}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="4 7 4 4 20 4 20 7" /><line x1="9" y1="20" x2="15" y2="20" /><line x1="12" y1="4" x2="12" y2="20" /></svg>
+                文字
+              </button>
+              <button className={`gm5-nav-btn ${activeSidebarTab === 'layers' ? 'is-active' : ''}`} onClick={() => setActiveSidebarTab('layers')}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 12 12 17 22 12" /><polyline points="2 17 12 22 22 17" /></svg>
+                圖層
+              </button>
             </div>
-            <div className="gm5-card"><h2>預設內容</h2>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-500">問候語</label>
-                <input className="gm5-input" value={greetingText} onChange={e => { setGreetingText(e.target.value); syncSelectedByType('greeting', { text: e.target.value }); }} />
-                <label className="text-xs font-bold text-gray-500">智慧語來源</label>
-                <div className="flex gap-2">
-                  <select className="gm5-input flex-1" value={selectedCategory} onChange={e => setSelectedCategory(parseInt(e.target.value, 10))}>
-                    {wisdomCategories.map((c, i) => <option key={i} value={i}>{c.name}</option>)}
-                  </select>
-                  <button className="gm5-btn gm5-btn-soft" onClick={generateRandomQuote}>隨機</button>
-                </div>
-              </div>
-            </div>
-            <div className="gm5-card"><h2>圖層管理</h2>
-              <div className="gm5-layers max-h-60 overflow-y-auto pr-2">
-                {[...textBlocks].reverse().map(b => (
-                  <div key={b.id} className={`gm5-layer ${selectedIds.includes(b.id) ? 'is-selected' : ''}`}>
-                    <button className="gm5-layer-main" onClick={() => { setSelectedIds([b.id]); setPrimaryId(b.id); }}>{b.label || (b.text ? b.text.slice(0, 10) : '圖層')}</button>
-                    <div className="gm5-layer-actions">
-                      <button onClick={() => updateBlockById(b.id, { visible: !b.visible })}>{b.visible !== false ? '👁️' : '🕶️'}</button>
-                      <button onClick={() => updateBlockById(b.id, { locked: !b.locked })}>{b.locked ? '🔒' : '🔓'}</button>
+            <div className="gm5-sidebar-panel">
+              {activeSidebarTab === 'design' && (
+                <>
+                  <div className="gm5-card">
+                    <h2>畫布底圖設定</h2>
+                    <label className="gm5-upload"><input type="file" accept="image/*" onChange={handleImageUpload} /><span>上傳新底圖</span></label>
+                  </div>
+                  <div className="gm5-card">
+                    <h2>簽名設定</h2>
+                    <button className="gm5-btn gm5-btn-soft w-full" onClick={() => setIsSignatureManagerOpen(true)}>管理與套用簽名檔</button>
+                  </div>
+                </>
+              )}
+              {activeSidebarTab === 'text' && (
+                <>
+                  <div className="gm5-card">
+                    <h2>加入文字區塊</h2>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button className="gm5-btn gm5-btn-soft" onClick={() => addTextBlock('greeting')}>+ 問候語</button>
+                      <button className="gm5-btn gm5-btn-soft" onClick={() => addTextBlock('wisdom')}>+ 智慧語</button>
+                    </div>
+                    <button className="gm5-btn gm5-btn-soft w-full mt-3" onClick={() => setIsFontManagerOpen(true)}>全域字型管理</button>
+                  </div>
+                  <div className="gm5-card"><h2>智慧語來源</h2>
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500">同步更新問候語內容</label>
+                        <input className="gm5-input" value={greetingText} onChange={e => { setGreetingText(e.target.value); syncSelectedByType('greeting', { text: e.target.value }, { recordHistory: false }); }} onBlur={() => { if (selectedIds.length) pushHistory(textBlocks); }} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500">切換語錄</label>
+                        <div className="flex gap-2">
+                          <select className="gm5-input flex-1" value={selectedCategory} onChange={e => setSelectedCategory(parseInt(e.target.value, 10))}>
+                            {wisdomCategories.map((c, i) => <option key={i} value={i}>{c.name}</option>)}
+                          </select>
+                          <button className="gm5-btn gm5-btn-soft px-3" onClick={generateRandomQuote}>換一句</button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                </>
+              )}
+              {activeSidebarTab === 'layers' && (
+                <div className="gm5-card flex-1 flex flex-col min-h-0">
+                  <h2>圖層清單</h2>
+                  <div className="gm5-layers flex-1 pr-2">
+                    {[...textBlocks].reverse().map(b => (
+                      <div key={b.id} className={`gm5-layer ${selectedIds.includes(b.id) ? 'is-selected' : ''}`}>
+                        <button className="gm5-layer-main" onClick={() => { setSelectedIds([b.id]); setPrimaryId(b.id); }}>{b.label || (b.text ? b.text.slice(0, 10) : '圖層')}</button>
+                        <div className="gm5-layer-actions">
+                          <button onClick={() => updateBlockById(b.id, { visible: !b.visible })}>{b.visible !== false ? '👁️' : '🕶️'}</button>
+                          <button onClick={() => updateBlockById(b.id, { locked: !b.locked })}>{b.locked ? '🔒' : '🔓'}</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {textBlocks.length === 0 && <div className="text-sm text-center text-gray-400 mt-4">畫布尚未包含任何物件</div>}
+                </div>
+              )}
             </div>
           </aside>
 
           <section className="gm5-preview">
-            <div className="gm5-toolbar">
-              <div className="gm5-row space-x-1">
-                <button className="gm5-btn gm5-btn-soft p-2 min-w-0" onClick={undo} disabled={historyRef.current.length === 0}><Undo /></button>
-                <button className="gm5-btn gm5-btn-soft p-2 min-w-0" onClick={redo} disabled={futureRef.current.length === 0}><Redo /></button>
-                <div className="w-[1px] h-6 bg-gray-200 mx-1 hidden sm:block" />
-                <button className={`gm5-btn ${showGrid ? 'gm5-btn-primary' : 'gm5-btn-soft'} px-3`} onClick={() => setShowGrid(!showGrid)}>網格</button>
-                <button className="gm5-btn gm5-btn-danger px-3" onClick={deleteSelected} disabled={!selectedIds.length}>刪除</button>
-                <button className="gm5-btn gm5-btn-soft px-3" onClick={fitToScreen}>適配</button>
-                <button className="gm5-btn gm5-btn-primary px-3 ml-auto shadow-sm" onClick={saveImage}><Download /><span>載出</span></button>
+            {primaryId && (
+              <div className="gm5-context-bar animate-in fade-in zoom-in-95">
+                {textBlocks.find(b => b.id === primaryId)?.type !== 'signature' ? (
+                  <>
+                    <select className="gm5-input !min-h-8 !h-8 !w-36 !py-0 text-sm font-semibold border-none shadow-none" value={textBlocks.find(b => b.id === primaryId)?.font || ''} onChange={e => updateBlockById(primaryId, { font: e.target.value })}>{allFonts.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}</select>
+                    <div className="w-[1px] h-5 bg-gray-200" />
+                    <select className="gm5-input !min-h-8 !h-8 !w-20 !py-0 text-sm border-none shadow-none" value={textBlocks.find(b => b.id === primaryId)?.fontWeight || 400} onChange={e => { const val = parseInt(e.target.value, 10); updateBlockById(primaryId, { fontWeight: val }); }}>
+                      {[100, 200, 300, 400, 500, 600, 700, 800, 900].map(w => <option key={w} value={w}>{w}</option>)}
+                    </select>
+                    <div className="w-[1px] h-5 bg-gray-200" />
+                    <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer hover:bg-black/5 p-1 rounded transition-colors"><div className="w-5 h-5 rounded-full shadow-inner border border-black/10 flex items-center justify-center font-serif text-white text-[10px]" style={{ background: textBlocks.find(b => b.id === primaryId)?.fillColor || '#000000' }}>A</div><input type="color" className="opacity-0 absolute w-0 h-0" value={textBlocks.find(b => b.id === primaryId)?.fillColor || '#000000'} onChange={e => updateBlockById(primaryId, { fillColor: e.target.value })} /></label>
+                    <label className="flex items-center gap-1 text-xs font-bold cursor-pointer hover:bg-black/5 p-1 rounded transition-colors" title="開啟/關閉描邊">
+                      <input type="checkbox" className="min-w-3 min-h-3" checked={textBlocks.find(b => b.id === primaryId)?.hasStroke ?? true} onChange={e => updateBlockById(primaryId, { hasStroke: e.target.checked })} />
+                      描邊
+                    </label>
+                    <label className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer hover:bg-black/5 p-1 rounded transition-colors ${(textBlocks.find(b => b.id === primaryId)?.hasStroke ?? true) ? '' : 'opacity-40 pointer-events-none'}`}>
+                      <div className="w-5 h-5 rounded-md border-2" style={{ borderColor: textBlocks.find(b => b.id === primaryId)?.strokeColor || '#ffffff', background: 'transparent' }} />
+                      <input type="color" className="opacity-0 absolute w-0 h-0" value={textBlocks.find(b => b.id === primaryId)?.strokeColor || '#ffffff'} onChange={e => updateBlockById(primaryId, { strokeColor: e.target.value })} />
+                    </label>
+                    <div className="w-[1px] h-5 bg-gray-200" />
+                    <div className="flex bg-black/5 rounded-lg p-0.5">
+                      <button className={`px-3 py-1 text-sm font-bold rounded-md ${textBlocks.find(b => b.id === primaryId)?.width >= textBlocks.find(b => b.id === primaryId)?.height ? 'bg-white shadow-sm' : 'opacity-60'}`} onClick={() => { const b = textBlocks.find(x => x.id === primaryId); updateBlockById(primaryId, { width: Math.max(b.width, b.height), height: Math.min(b.width, b.height) }); }}>橫</button>
+                      <button className={`px-3 py-1 text-sm font-bold rounded-md ${textBlocks.find(b => b.id === primaryId)?.height > textBlocks.find(b => b.id === primaryId)?.width ? 'bg-white shadow-sm' : 'opacity-60'}`} onClick={() => { const b = textBlocks.find(x => x.id === primaryId); updateBlockById(primaryId, { width: Math.min(b.width, b.height), height: Math.max(b.width, b.height) }); }}>直</button>
+                    </div>
+                    <div className="w-[1px] h-5 bg-gray-200" />
+                    <textarea
+                      className="gm5-input text-sm border-none shadow-none resize bg-black/5 rounded-md"
+                      style={{ minHeight: '32px', minWidth: '160px', height: '32px', width: '160px', padding: '4px 8px', overflow: 'auto' }}
+                      placeholder="修改文字內容..."
+                      value={textBlocks.find(b => b.id === primaryId)?.text || ''}
+                      onChange={e => updateBlockById(primaryId, { text: e.target.value }, { recordHistory: false })}
+                      onBlur={e => { pushHistory(textBlocks); }}
+                    />
+                    <div className="w-[1px] h-5 bg-gray-200" />
+                    <button className="gm5-btn !min-h-8 !h-8 !min-w-8 !w-8 !p-0 !rounded-md text-red-500 hover:bg-red-50 transition-colors" title="刪除" onClick={deleteSelected}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" /></svg>
+                    </button>
+                  </>
+                ) : <span className="text-sm font-bold text-gray-600 px-4 flex items-center gap-4">已選中簽名檔圖層 <button className="gm5-btn !min-h-6 !h-6 !px-2 !py-0 !rounded-md text-red-500 bg-red-50 hover:bg-red-100 transition-colors text-xs" onClick={deleteSelected}>刪除</button></span>}
               </div>
-              <div className="gm5-row mt-2 sm:mt-0">
-                <span className="text-xs opacity-60 mr-2">縮放: {zoom}%</span>
-                <input type="range" min={minZoom} max={maxZoom} value={zoom} onChange={e => setZoom(parseInt(e.target.value, 10))} className="flex-1 max-w-[120px]" />
-              </div>
-            </div>
+            )}
             <div className="gm5-canvas-wrap" ref={wrapRef}>
-              <div className="gm5-canvas-stage shadow-2xl" style={{ width: canvasSize.width * zoom / 100, height: canvasSize.height * zoom / 100 }}>
-                <canvas 
-                  ref={canvasRef} 
-                  width={canvasSize.width} 
-                  height={canvasSize.height} 
-                  style={{ width: '100%', height: '100%' }} 
+              <div className="gm5-canvas-stage shadow-2xl transition-transform duration-200" style={{ width: canvasSize.width * zoom / 100, height: canvasSize.height * zoom / 100 }}>
+                <canvas
+                  ref={canvasRef}
+                  width={canvasSize.width}
+                  height={canvasSize.height}
+                  style={{ width: '100%', height: '100%' }}
                   onMouseDown={startPointer}
                   onMouseMove={updateCursor}
                 />
@@ -884,33 +1027,15 @@ const GoodMorningGeneratorV5 = () => {
               </div>
             </div>
 
-            {primaryId && (
-              <div className="mt-6 animate-in fade-in slide-in-from-bottom-2">
-                {textBlocks.find(b => b.id === primaryId)?.type !== 'signature' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="gm5-card"><label className="text-xs font-bold text-gray-400 uppercase">內容</label><textarea className="gm5-input h-24" value={textBlocks.find(b => b.id === primaryId)?.text || ''} onChange={e => updateBlockById(primaryId, { text: e.target.value })} /></div>
-                    <div className="gm5-card"><label className="text-xs font-bold text-gray-400 uppercase">字型</label>
-                      <select className="gm5-input" value={textBlocks.find(b => b.id === primaryId)?.font || ''} onChange={e => updateBlockById(primaryId, { font: e.target.value })}>{allFonts.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}</select>
-                      <div className="mt-4 flex gap-2">
-                        <button className={`gm5-btn flex-1 ${textBlocks.find(b => b.id === primaryId)?.width >= textBlocks.find(b => b.id === primaryId)?.height ? 'gm5-btn-primary' : 'gm5-btn-soft'}`} onClick={() => { const b = textBlocks.find(x => x.id === primaryId); updateBlockById(primaryId, { width: Math.max(b.width, b.height), height: Math.min(b.width, b.height) }); }}>橫向</button>
-                        <button className={`gm5-btn flex-1 ${textBlocks.find(b => b.id === primaryId)?.height > textBlocks.find(b => b.id === primaryId)?.width ? 'gm5-btn-primary' : 'gm5-btn-soft'}`} onClick={() => { const b = textBlocks.find(x => x.id === primaryId); updateBlockById(primaryId, { width: Math.min(b.width, b.height), height: Math.max(b.width, b.height) }); }}>直向</button>
-                      </div>
-                    </div>
-                    <div className="gm5-card"><label className="text-xs font-bold text-gray-400 uppercase">色彩</label>
-                      <div className="gm5-color-grid">
-                        <label><span>填色</span><input type="color" value={textBlocks.find(b => b.id === primaryId)?.fillColor || '#000000'} onChange={e => updateBlockById(primaryId, { fillColor: e.target.value })} /></label>
-                        <label><span>描邊</span><input type="color" value={textBlocks.find(b => b.id === primaryId)?.strokeColor || '#ffffff'} onChange={e => updateBlockById(primaryId, { strokeColor: e.target.value })} /></label>
-                      </div>
-                    </div>
-                  </div>
-                ) : <div className="gm5-card text-center py-4 text-gray-500">已選中簽名圖層</div>}
-              </div>
-            )}
+            <div className="absolute bottom-4 right-4 bg-white/80 backdrop-blur-md px-4 py-2 flex items-center gap-2 rounded-2xl shadow-lg border border-black/5 z-20">
+              <span className="text-[11px] font-bold text-gray-500 w-10 text-right">{zoom}%</span>
+              <input type="range" min={minZoom} max={maxZoom} value={zoom} onChange={e => setZoom(parseInt(e.target.value, 10))} className="w-24 md:w-32 accent-[#b46b2b]" />
+            </div>
           </section>
         </main>
       </div>
 
-      <MobileControls 
+      <MobileControls
         activeTab={activeMobileTab}
         setActiveTab={setActiveMobileTab}
         isExpanded={isMobileDrawerExpanded}
@@ -934,15 +1059,18 @@ const GoodMorningGeneratorV5 = () => {
         updateBlockById={updateBlockById}
         allFonts={allFonts}
         primaryId={primaryId}
+        setGreetingWeight={setGreetingWeight}
+        setWisdomWeight={setWisdomWeight}
+        onDeleteSelected={deleteSelected}
       />
 
-      <FontManager 
-        isOpen={isFontManagerOpen} 
-        onClose={() => setIsFontManagerOpen(false)} 
-        onFontsChange={setCustomFonts} 
-        presetFonts={BUILTIN_FONTS} 
-        disabledPresetFonts={disabledPresetFonts} 
-        onTogglePresetFont={handleTogglePresetFont} 
+      <FontManager
+        isOpen={isFontManagerOpen}
+        onClose={() => setIsFontManagerOpen(false)}
+        onFontsChange={setCustomFonts}
+        presetFonts={BUILTIN_FONTS}
+        disabledPresetFonts={disabledPresetFonts}
+        onTogglePresetFont={handleTogglePresetFont}
       />
       <WisdomManager isOpen={isWisdomManagerOpen} onClose={() => setIsWisdomManagerOpen(false)} onWisdomChange={(newQuotes) => { setWisdomCategories(prev => { const next = [...prev]; const idx = next.findIndex(c => c.name === '7.自訂語錄'); if (idx !== -1) next[idx] = { name: '7.自訂語錄', quotes: newQuotes.length ? newQuotes : ['尚未建立自訂語錄'] }; return next; }); }} />
       <SignatureManager isOpen={isSignatureManagerOpen} onClose={() => setIsSignatureManagerOpen(false)} onSignatureSelect={(sig) => addSignatureBlock(sig)} />

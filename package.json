@@ -9,9 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview"
   },
-  
   "devDependencies": {
-    "@capacitor/cli": "^8.1.0",
     "@eslint/config-array": "^0.23.1",
     "@eslint/eslintrc": "^3.3.3",
     "@eslint/js": "^9.39.1",
