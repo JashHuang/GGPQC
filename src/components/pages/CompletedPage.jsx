@@ -4,6 +4,13 @@ import SecondaryButton from '../ui/SecondaryButton';
 
 const CompletedPage = ({ imageData, isRegenerating, onRegenerate, onChangeBackground, onDIY, onHome }) => {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+
+  const dataUrlToFile = useCallback(async (dataUrl, filename) => {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    return new File([blob], filename, { type: blob.type || 'image/jpeg' });
+  }, []);
 
   const handleDownload = useCallback(() => {
     if (!imageData) return;
@@ -16,18 +23,39 @@ const CompletedPage = ({ imageData, isRegenerating, onRegenerate, onChangeBackgr
     setIsDownloading(false);
   }, [imageData]);
 
-  const handleShareToLine = useCallback(() => {
+  const handleShareToLine = useCallback(async () => {
     if (!imageData) return;
-    
-    const link = document.createElement('a');
-    link.href = imageData;
-    link.download = `good-morning-${Date.now()}.jpg`;
-    link.click();
-    
-    setTimeout(() => {
-      window.open('https://line.me/zh-hant/', '_blank');
-    }, 500);
-  }, [imageData]);
+    setIsSharing(true);
+
+    try {
+      const now = Date.now();
+      const file = await dataUrlToFile(imageData, `good-morning-${now}.jpg`);
+
+      if (navigator.share) {
+        const payload = {
+          title: '早安圖',
+          text: '早安！送你一張祝福圖',
+          files: [file],
+        };
+
+        if (!navigator.canShare || navigator.canShare(payload)) {
+          await navigator.share(payload);
+          return;
+        }
+      }
+
+      const text = encodeURIComponent('早安！我分享一張祝福圖給你');
+      window.open(`https://line.me/R/msg/text/?${text}`, '_blank');
+      alert('此裝置不支援直接分享圖片到 LINE，已改為開啟 LINE 文字分享。您也可以先下載圖片再傳送。');
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        console.error('分享到 LINE 失敗:', error);
+        alert('分享失敗，請改用「下載圖片」後手動傳到 LINE。');
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  }, [dataUrlToFile, imageData]);
 
   if (!imageData) {
     return (
@@ -55,7 +83,7 @@ const CompletedPage = ({ imageData, isRegenerating, onRegenerate, onChangeBackgr
       </div>
 
       <div className="gm6-completed-actions">
-        <PrimaryButton onClick={handleShareToLine}>
+        <PrimaryButton onClick={handleShareToLine} disabled={isSharing}>
           📱 傳到 LINE
         </PrimaryButton>
         
