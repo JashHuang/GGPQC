@@ -1,0 +1,55 @@
+:root {
+  /* Primary Colors */
+  --gm6-primary-500: #2E9F6E;
+  --gm6-primary-600: #238A5E;
+  --gm6-primary-100: #E6F5EE;
+
+  /* Secondary Colors */
+  --gm6-orange: #F4A261;
+  --gm6-yellow: #F9D976;
+
+  /* Neutral Colors */
+  --gm6-bg: #F9FAF8;
+  --gm6-card: #FFFFFF;
+  --gm6-text-primary: #222222;
+  --gm6-text-secondary: #6B7280;
+
+  /* Border Radius */
+  --gm6-radius-btn: 16px;
+  --gm6-radius-card: 20px;
+  --gm6-radius-canvas: 24px;
+
+  /* Typography */
+  --gm6-font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  --gm6-font-size-h1: 24px;
+  --gm6-font-size-h2: 20px;
+  --gm6-font-size-btn: 20px;
+  --gm6-font-size-body: 18px;
+  --gm6-font-size-min: 16px;
+  --gm6-line-height: 1.6;
+
+  /* Spacing */
+  --gm6-spacing-xs: 4px;
+  --gm6-spacing-sm: 8px;
+  --gm6-spacing-md: 16px;
+  --gm6-spacing-lg: 24px;
+  --gm6-spacing-xl: 32px;
+
+  /* Component Sizes */
+  --gm6-height-primary-btn: 56px;
+  --gm6-height-secondary-btn: 52px;
+  --gm6-height-input: 52px;
+}
+
+.gm6-page {
+  font-family: var(--gm6-font-family);
+  background-color: var(--gm6-bg);
+  color: var(--gm6-text-primary);
+  line-height: var(--gm6-line-height);
+  min-height: 100vh;
+  font-size: var(--gm6-font-size-body);
+}
+
+.gm6-page * {
+  box-sizing: border-box;
+}

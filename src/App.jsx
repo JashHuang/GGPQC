@@ -1,8 +1,8 @@
 import './App.css'
-import GoodMorningGenerator from './good-morning-generator';
+import GoodMorningGeneratorV6 from './GoodMorningGeneratorV6';
 
 function App() {
-  return <GoodMorningGenerator />;
+  return <GoodMorningGeneratorV6 />;
 }
 
 export default App

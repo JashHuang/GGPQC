@@ -55,6 +55,19 @@ const DEFAULT_USER_STYLE_SETTINGS = {
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 const cloneBlocks = (blocks) => blocks.map((b) => ({ ...b }));
+const HEX_COLOR_REGEX = /^#([a-fA-F0-9]{6})$/;
+
+const toHexColor = (value, fallback = '#000000') => {
+  if (!value) return fallback;
+  const normalized = String(value).trim();
+  if (HEX_COLOR_REGEX.test(normalized)) return normalized.toLowerCase();
+  const match = normalized.match(/^rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (!match) return fallback;
+  const r = clamp(parseInt(match[1], 10), 0, 255);
+  const g = clamp(parseInt(match[2], 10), 0, 255);
+  const b = clamp(parseInt(match[3], 10), 0, 255);
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+};
 
 const normalizeWisdomPath = (path) => {
   const trimmed = (path || '').trim();
@@ -152,7 +165,7 @@ const GoodMorningGeneratorV5 = () => {
   const [disabledPresetFonts, setDisabledPresetFonts] = useState([]);
   const [theme, setTheme] = useState(() => localStorage.getItem(THEME_STORAGE_KEY) || 'light');
   const [activeSidebarTab, setActiveSidebarTab] = useState('text');
-  const [activeMobileTab, setActiveMobileTab] = useState('tool');
+  const [activeMobileTab, setActiveMobileTab] = useState('design');
   const [isMobileDrawerExpanded, setIsMobileDrawerExpanded] = useState(true);
 
   const selectionSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -219,10 +232,6 @@ const GoodMorningGeneratorV5 = () => {
     }
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem(DISABLED_FONTS_STORAGE_KEY, JSON.stringify(disabledPresetFonts));
-  }, [disabledPresetFonts]);
-
   const handleTogglePresetFont = (fontName) => {
     setDisabledPresetFonts((prev) =>
       prev.includes(fontName) ? prev.filter((f) => f !== fontName) : [...prev, fontName]
@@ -244,6 +253,149 @@ const GoodMorningGeneratorV5 = () => {
     futureRef.current = [];
     setHistoryVersion((v) => v + 1);
   }, []);
+
+  // V6 Editor 初始化事件
+  useEffect(() => {
+    const handleV6Init = (e) => {
+      const {
+        background,
+        blessing,
+        textColor,
+        textColorType,
+        editorScene,
+      } = e.detail;
+      if (!background) return;
+
+      const canvasWidth = 1080;
+      const canvasHeight = 1080;
+      const safeArea = background.textSafeArea || { x: 0.1, y: 0.15, width: 0.8, height: 0.7 };
+      
+      const fillColor = textColor || '#ffffff';
+      const strokeColor = textColorType === 'light' ? '#000000' : '#ffffff';
+
+      const greetingBlock = {
+        id: 'v6-greeting',
+        type: 'greeting',
+        label: '早安',
+        visible: true,
+        locked: false,
+        text: '早安',
+        x: canvasWidth * 0.1,
+        y: canvasHeight * 0.15,
+        width: canvasWidth * 0.8,
+        height: canvasHeight * 0.15,
+        font: greetingFont,
+        fillColor: fillColor,
+        strokeColor: strokeColor,
+        fontWeight: 700,
+        hasStroke: true,
+      };
+
+      const wisdomText = blessing?.text || '美好的一天，順心如意';
+      const wisdomBlock = {
+        id: 'v6-wisdom',
+        type: 'wisdom',
+        label: '祝福語',
+        visible: true,
+        locked: false,
+        text: wisdomText,
+        x: canvasWidth * safeArea.x,
+        y: canvasHeight * 0.35,
+        width: canvasWidth * safeArea.width,
+        height: canvasHeight * 0.4,
+        font: wisdomFont,
+        fillColor: fillColor,
+        strokeColor: strokeColor,
+        fontWeight: 400,
+        hasStroke: true,
+      };
+
+      const fallbackBlocks = [greetingBlock, wisdomBlock];
+
+      if (editorScene?.backgroundDataUrl && Array.isArray(editorScene.textBlocks) && editorScene.textBlocks.length > 0) {
+        const sceneImageBlock = editorScene.textBlocks.find((b) => b.type === 'signature' && b.data);
+        const handleScene = (img) => {
+          pushHistory(textBlocks);
+          setBackgroundImage(img);
+          setCanvasSize(editorScene.canvasSize || { width: img.width || canvasWidth, height: img.height || canvasHeight });
+          setTextBlocks(editorScene.textBlocks);
+          const firstId = editorScene.textBlocks[0]?.id || null;
+          setSelectedIds(firstId ? [firstId] : []);
+          setPrimaryId(firstId);
+          if (sceneImageBlock?.data) {
+            const sig = new Image();
+            sig.onload = () => setSignatureImage(sig);
+            sig.src = sceneImageBlock.data;
+          } else {
+            setSignatureImage(null);
+          }
+        };
+
+        const sceneBg = new Image();
+        sceneBg.onload = () => handleScene(sceneBg);
+        sceneBg.onerror = () => {
+          setBackgroundImage(null);
+          setCanvasSize(editorScene.canvasSize || { width: canvasWidth, height: canvasHeight });
+          setTextBlocks(editorScene.textBlocks);
+          const firstId = editorScene.textBlocks[0]?.id || null;
+          setSelectedIds(firstId ? [firstId] : []);
+          setPrimaryId(firstId);
+        };
+        sceneBg.src = editorScene.backgroundDataUrl;
+        return;
+      }
+
+      const handleBackground = (img) => {
+        pushHistory(textBlocks);
+        setBackgroundImage(img);
+        setCanvasSize({ width: img.width || canvasWidth, height: img.height || canvasHeight });
+        setTextBlocks(fallbackBlocks);
+        setSelectedIds(['v6-greeting']);
+        setPrimaryId('v6-greeting');
+      };
+
+      if (background.imageUrl) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => handleBackground(img);
+        img.onerror = () => {
+          setCanvasSize({ width: canvasWidth, height: canvasHeight });
+          setTextBlocks(fallbackBlocks);
+          setSelectedIds(['v6-greeting']);
+          setPrimaryId('v6-greeting');
+        };
+        img.src = background.imageUrl;
+      } else {
+        setCanvasSize({ width: canvasWidth, height: canvasHeight });
+        setTextBlocks(fallbackBlocks);
+        setSelectedIds(['v6-greeting']);
+        setPrimaryId('v6-greeting');
+      }
+    };
+
+    window.addEventListener('v6-editor-init', handleV6Init);
+    return () => window.removeEventListener('v6-editor-init', handleV6Init);
+  }, [textBlocks, pushHistory, greetingFont, wisdomFont]);
+
+  useEffect(() => {
+    const handleExportRequest = (e) => {
+      const requestId = e.detail?.requestId;
+      if (!requestId) return;
+      window.dispatchEvent(new CustomEvent('v6-editor-export-response', {
+        detail: {
+          requestId,
+          scene: {
+            canvasSize,
+            backgroundDataUrl: backgroundImage?.src || null,
+            textBlocks: cloneBlocks(textBlocks),
+          },
+        },
+      }));
+    };
+
+    window.addEventListener('v6-editor-export-request', handleExportRequest);
+    return () => window.removeEventListener('v6-editor-export-request', handleExportRequest);
+  }, [canvasSize, backgroundImage, textBlocks]);
 
   const undo = useCallback(() => {
     const prev = historyRef.current.pop();
@@ -982,14 +1134,14 @@ const GoodMorningGeneratorV5 = () => {
                       {[100, 200, 300, 400, 500, 600, 700, 800, 900].map(w => <option key={w} value={w}>{w}</option>)}
                     </select>
                     <div className="w-[1px] h-5 bg-gray-200" />
-                    <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer hover:bg-black/5 p-1 rounded transition-colors"><div className="w-5 h-5 rounded-full shadow-inner border border-black/10 flex items-center justify-center font-serif text-white text-[10px]" style={{ background: textBlocks.find(b => b.id === primaryId)?.fillColor || '#000000' }}>A</div><input type="color" className="opacity-0 absolute w-0 h-0" value={textBlocks.find(b => b.id === primaryId)?.fillColor || '#000000'} onChange={e => updateBlockById(primaryId, { fillColor: e.target.value })} /></label>
+                    <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer hover:bg-black/5 p-1 rounded transition-colors"><div className="w-5 h-5 rounded-full shadow-inner border border-black/10 flex items-center justify-center font-serif text-white text-[10px]" style={{ background: toHexColor(textBlocks.find(b => b.id === primaryId)?.fillColor, '#000000') }}>A</div><input type="color" className="opacity-0 absolute w-0 h-0" value={toHexColor(textBlocks.find(b => b.id === primaryId)?.fillColor, '#000000')} onChange={e => updateBlockById(primaryId, { fillColor: e.target.value })} /></label>
                     <label className="flex items-center gap-1 text-xs font-bold cursor-pointer hover:bg-black/5 p-1 rounded transition-colors" title="開啟/關閉描邊">
                       <input type="checkbox" className="min-w-3 min-h-3" checked={textBlocks.find(b => b.id === primaryId)?.hasStroke ?? true} onChange={e => updateBlockById(primaryId, { hasStroke: e.target.checked })} />
                       描邊
                     </label>
                     <label className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer hover:bg-black/5 p-1 rounded transition-colors ${(textBlocks.find(b => b.id === primaryId)?.hasStroke ?? true) ? '' : 'opacity-40 pointer-events-none'}`}>
-                      <div className="w-5 h-5 rounded-md border-2" style={{ borderColor: textBlocks.find(b => b.id === primaryId)?.strokeColor || '#ffffff', background: 'transparent' }} />
-                      <input type="color" className="opacity-0 absolute w-0 h-0" value={textBlocks.find(b => b.id === primaryId)?.strokeColor || '#ffffff'} onChange={e => updateBlockById(primaryId, { strokeColor: e.target.value })} />
+                      <div className="w-5 h-5 rounded-md border-2" style={{ borderColor: toHexColor(textBlocks.find(b => b.id === primaryId)?.strokeColor, '#ffffff'), background: 'transparent' }} />
+                      <input type="color" className="opacity-0 absolute w-0 h-0" value={toHexColor(textBlocks.find(b => b.id === primaryId)?.strokeColor, '#ffffff')} onChange={e => updateBlockById(primaryId, { strokeColor: e.target.value })} />
                     </label>
                     <div className="w-[1px] h-5 bg-gray-200" />
                     <div className="flex bg-black/5 rounded-lg p-0.5">

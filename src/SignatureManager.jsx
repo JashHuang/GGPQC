@@ -1,68 +1,9 @@
 import React, { useState, useEffect } from 'react';
-
-// IndexedDB 相關常數
-const DB_NAME = 'GoodMorningSignatureDB';
-const STORE_NAME = 'signatures';
-const DB_VERSION = 1;
-
-/**
- * 開啟 IndexedDB
- */
-const openDB = () => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-      }
-    };
-    request.onsuccess = (event) => resolve(event.target.result);
-    request.onerror = (event) => reject(event.target.error);
-  });
-};
-
-/**
- * 獲取所有簽名檔
- */
-const getSignaturesFromDB = async () => {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.getAll();
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-};
-
-/**
- * 儲存簽名檔
- */
-const saveSignatureToDB = async (signature) => {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.put(signature);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
-};
-
-/**
- * 刪除簽名檔
- */
-const deleteSignatureFromDB = async (id) => {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.delete(id);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
-};
+import {
+  getSignaturesFromDB,
+  saveSignatureToDB,
+  deleteSignatureFromDB,
+} from './data/signatureStore';
 
 const SignatureManager = ({ isOpen, onClose, onSignatureSelect }) => {
   const [signatures, setSignatures] = useState([]);

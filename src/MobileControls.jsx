@@ -1,5 +1,19 @@
 import React from 'react';
 
+const HEX_COLOR_REGEX = /^#([a-fA-F0-9]{6})$/;
+const toHexColor = (value, fallback = '#000000') => {
+  if (!value) return fallback;
+  const normalized = String(value).trim();
+  if (HEX_COLOR_REGEX.test(normalized)) return normalized.toLowerCase();
+  const match = normalized.match(/^rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (!match) return fallback;
+  const toByte = (v) => Math.max(0, Math.min(255, parseInt(v, 10)));
+  const r = toByte(match[1]);
+  const g = toByte(match[2]);
+  const b = toByte(match[3]);
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+};
+
 // Mini property editor shown inside drawer when something is selected
 const MobilePropertyBar = ({ primaryId, textBlocks, updateBlockById, allFonts, setGreetingWeight, setWisdomWeight, onDelete }) => {
   const block = textBlocks.find(b => b.id === primaryId);
@@ -52,15 +66,15 @@ const MobilePropertyBar = ({ primaryId, textBlocks, updateBlockById, allFonts, s
       {/* Color + orientation */}
       <div className="flex gap-2 w-full items-center">
         <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer bg-black/5 px-3 py-2 rounded-lg">
-          <div className="w-4 h-4 rounded-full border border-black/10" style={{ background: block.fillColor || '#000' }} />
+          <div className="w-4 h-4 rounded-full border border-black/10" style={{ background: toHexColor(block.fillColor, '#000000') }} />
           填色
-          <input type="color" className="opacity-0 absolute w-0 h-0" value={block.fillColor || '#000000'} onChange={e => updateBlockById(primaryId, { fillColor: e.target.value })} />
+          <input type="color" className="opacity-0 absolute w-0 h-0" value={toHexColor(block.fillColor, '#000000')} onChange={e => updateBlockById(primaryId, { fillColor: e.target.value })} />
         </label>
         <label className={`flex items-center gap-1.5 text-xs font-semibold cursor-pointer bg-black/5 px-2 py-2 rounded-lg ${(block.hasStroke ?? true) ? '' : 'opacity-40'}`}>
           <input type="checkbox" className="w-3 h-3" checked={block.hasStroke ?? true} onChange={e => updateBlockById(primaryId, { hasStroke: e.target.checked })} />
-          <div className="w-4 h-4 rounded-md border-2 pointer-events-none" style={{ borderColor: block.strokeColor || '#fff', background: 'transparent' }} />
+          <div className="w-4 h-4 rounded-md border-2 pointer-events-none" style={{ borderColor: toHexColor(block.strokeColor, '#ffffff'), background: 'transparent' }} />
           描邊
-          <input type="color" className="opacity-0 absolute w-0 h-0" value={block.strokeColor || '#ffffff'} onChange={e => updateBlockById(primaryId, { strokeColor: e.target.value })} disabled={!(block.hasStroke ?? true)} />
+          <input type="color" className="opacity-0 absolute w-0 h-0" value={toHexColor(block.strokeColor, '#ffffff')} onChange={e => updateBlockById(primaryId, { strokeColor: e.target.value })} disabled={!(block.hasStroke ?? true)} />
         </label>
         <div className="flex ml-auto bg-black/5 rounded-lg p-0.5">
           <button
