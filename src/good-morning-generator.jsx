@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import './good-morning-generator.css';
-import FontManager from './FontManager';
+import FontManager, { getAllFontsFromDB } from './FontManager';
 import WisdomManager, { getCustomWisdomFromDB } from './WisdomManager';
 import SignatureManager from './SignatureManager';
 import MobileControls from './MobileControls';
@@ -10,20 +10,12 @@ const DEFAULT_WISDOM_PATH = 'wisdom/';
 const BUILTIN_FONTS = [
   { name: '思源黑體 (TC)', family: '"Noto Sans TC", sans-serif' },
   { name: '思源宋體 (TC)', family: '"Noto Serif TC", serif' },
-  { name: '思源黑體 (HK)', family: '"Noto Sans HK", sans-serif' },
-  { name: '思源宋體 (HK)', family: '"Noto Serif HK", serif' },
-  { name: '昭源宋體 (HK)', family: '"Chiron Sung HK", serif' },
   { name: '昭源圓體 (TC)', family: '"Chiron GoRound TC", sans-serif' },
-  { name: '昭源黑體 (HK)', family: '"Chiron Hei HK", sans-serif' },
   { name: '霞鶩文楷 (TC)', family: '"LXGW WenKai TC", sans-serif' },
-  { name: '霞鶩文楷等寬 (TC)', family: '"LXGW WenKai Mono TC", monospace' },
   { name: '馬善政楷體', family: '"Ma Shan Zheng", cursive' },
   { name: '至莽行書', family: '"Zhi Mang Xing", cursive' },
-  { name: '劉建毛草', family: '"Liu Jian Mao Cao", cursive' },
   { name: '小薇 LOGO 體', family: '"ZCOOL XiaoWei", sans-serif' },
-  { name: '正酷快樂體', family: '"ZCOOL Kuaile", sans-serif' },
   { name: '青刻黃油體', family: '"ZCOOL QingKe HuangYou", sans-serif' },
-  { name: '微軟正黑體', family: '"Microsoft JhengHei", sans-serif' },
   { name: '系統預設黑體', family: 'sans-serif' },
   { name: '系統預設明體', family: 'serif' },
 ];
@@ -145,6 +137,8 @@ const GoodMorningGeneratorV5 = () => {
   const [greetingStrokeColor, setGreetingStrokeColor] = useState(DEFAULT_USER_STYLE_SETTINGS.greetingStrokeColor);
   const [wisdomFillColor, setWisdomFillColor] = useState(DEFAULT_USER_STYLE_SETTINGS.wisdomFillColor);
   const [wisdomStrokeColor, setWisdomStrokeColor] = useState(DEFAULT_USER_STYLE_SETTINGS.wisdomStrokeColor);
+  const [greetingHasStroke, setGreetingHasStroke] = useState(true);
+  const [wisdomHasStroke, setWisdomHasStroke] = useState(true);
   const [greetingWeight, setGreetingWeight] = useState(DEFAULT_USER_STYLE_SETTINGS.greetingWeight);
   const [wisdomWeight, setWisdomWeight] = useState(DEFAULT_USER_STYLE_SETTINGS.wisdomWeight);
   const [activeUser, setActiveUser] = useState(DEFAULT_USER_NAME);
@@ -162,6 +156,7 @@ const GoodMorningGeneratorV5 = () => {
   const [isWisdomManagerOpen, setIsWisdomManagerOpen] = useState(false);
   const [isSignatureManagerOpen, setIsSignatureManagerOpen] = useState(false);
   const [signatureImage, setSignatureImage] = useState(null);
+  const [signaturePresetLayout, setSignaturePresetLayout] = useState(null);
   const [disabledPresetFonts, setDisabledPresetFonts] = useState([]);
   const [theme, setTheme] = useState(() => localStorage.getItem(THEME_STORAGE_KEY) || 'light');
   const [activeSidebarTab, setActiveSidebarTab] = useState('text');
@@ -232,6 +227,28 @@ const GoodMorningGeneratorV5 = () => {
     }
   }, []);
 
+  // Load custom fonts for DIY editor even when FontManager is not opened
+  useEffect(() => {
+    const loadCustomFonts = async () => {
+      try {
+        const storedFonts = await getAllFontsFromDB();
+        setCustomFonts(storedFonts);
+        await Promise.all(storedFonts.map(async (f) => {
+          try {
+            const fontFace = new FontFace(f.name, f.data);
+            await fontFace.load();
+            document.fonts.add(fontFace);
+          } catch (error) {
+            console.error(`DIY 載入自訂字型失敗: ${f.name}`, error);
+          }
+        }));
+      } catch (error) {
+        console.error('DIY 讀取自訂字型失敗:', error);
+      }
+    };
+    loadCustomFonts();
+  }, []);
+
   const handleTogglePresetFont = (fontName) => {
     setDisabledPresetFonts((prev) =>
       prev.includes(fontName) ? prev.filter((f) => f !== fontName) : [...prev, fontName]
@@ -263,7 +280,25 @@ const GoodMorningGeneratorV5 = () => {
         textColor,
         textColorType,
         editorScene,
+        rememberedStyle,
       } = e.detail;
+
+      if (rememberedStyle?.greeting) {
+        setGreetingFillColor(rememberedStyle.greeting.fillColor || DEFAULT_USER_STYLE_SETTINGS.greetingFillColor);
+        setGreetingStrokeColor(rememberedStyle.greeting.strokeColor || DEFAULT_USER_STYLE_SETTINGS.greetingStrokeColor);
+        setGreetingHasStroke(rememberedStyle.greeting.hasStroke !== false);
+      }
+
+      if (rememberedStyle?.wisdom) {
+        setWisdomFillColor(rememberedStyle.wisdom.fillColor || DEFAULT_USER_STYLE_SETTINGS.wisdomFillColor);
+        setWisdomStrokeColor(rememberedStyle.wisdom.strokeColor || DEFAULT_USER_STYLE_SETTINGS.wisdomStrokeColor);
+        setWisdomHasStroke(rememberedStyle.wisdom.hasStroke !== false);
+      }
+
+      if (rememberedStyle?.signature) {
+        setSignaturePresetLayout(rememberedStyle.signature);
+      }
+
       if (!background) return;
 
       const canvasWidth = 1080;
@@ -285,10 +320,10 @@ const GoodMorningGeneratorV5 = () => {
         width: canvasWidth * 0.8,
         height: canvasHeight * 0.15,
         font: greetingFont,
-        fillColor: fillColor,
-        strokeColor: strokeColor,
+        fillColor: rememberedStyle?.greeting?.fillColor || fillColor,
+        strokeColor: rememberedStyle?.greeting?.strokeColor || strokeColor,
         fontWeight: 700,
-        hasStroke: true,
+        hasStroke: rememberedStyle?.greeting?.hasStroke !== false,
       };
 
       const wisdomText = blessing?.text || '美好的一天，順心如意';
@@ -304,10 +339,10 @@ const GoodMorningGeneratorV5 = () => {
         width: canvasWidth * safeArea.width,
         height: canvasHeight * 0.4,
         font: wisdomFont,
-        fillColor: fillColor,
-        strokeColor: strokeColor,
+        fillColor: rememberedStyle?.wisdom?.fillColor || fillColor,
+        strokeColor: rememberedStyle?.wisdom?.strokeColor || strokeColor,
         fontWeight: 400,
-        hasStroke: true,
+        hasStroke: rememberedStyle?.wisdom?.hasStroke !== false,
       };
 
       const fallbackBlocks = [greetingBlock, wisdomBlock];
@@ -396,6 +431,24 @@ const GoodMorningGeneratorV5 = () => {
     window.addEventListener('v6-editor-export-request', handleExportRequest);
     return () => window.removeEventListener('v6-editor-export-request', handleExportRequest);
   }, [canvasSize, backgroundImage, textBlocks]);
+
+  useEffect(() => {
+    const handleClearSelectionRequest = (e) => {
+      const requestId = e.detail?.requestId;
+      if (!requestId) return;
+      setSelectedIds([]);
+      setPrimaryId(null);
+      setGuideLines({ x: null, y: null });
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new CustomEvent('v6-editor-clear-selection-response', {
+          detail: { requestId },
+        }));
+      });
+    };
+
+    window.addEventListener('v6-editor-clear-selection-request', handleClearSelectionRequest);
+    return () => window.removeEventListener('v6-editor-clear-selection-request', handleClearSelectionRequest);
+  }, []);
 
   const undo = useCallback(() => {
     const prev = historyRef.current.pop();
@@ -585,7 +638,7 @@ const GoodMorningGeneratorV5 = () => {
       fillColor: type === 'greeting' ? greetingFillColor : wisdomFillColor,
       strokeColor: type === 'greeting' ? greetingStrokeColor : wisdomStrokeColor,
       fontWeight: type === 'greeting' ? greetingWeight : wisdomWeight,
-      hasStroke: true,
+      hasStroke: type === 'greeting' ? greetingHasStroke : wisdomHasStroke,
     };
     pushHistory(textBlocks);
     setTextBlocks(prev => [...prev, block]);
@@ -597,10 +650,20 @@ const GoodMorningGeneratorV5 = () => {
     const img = new Image();
     img.onload = () => {
       const id = 'signature-layer';
+      const hasPresetX = Number.isFinite(signaturePresetLayout?.xRatio);
+      const hasPresetY = Number.isFinite(signaturePresetLayout?.yRatio);
+      const hasPresetW = Number.isFinite(signaturePresetLayout?.widthRatio);
+      const hasPresetH = Number.isFinite(signaturePresetLayout?.heightRatio);
       const block = {
         id, type: 'signature', label: '簽名檔', visible: true, locked: false,
-        x: canvasSize.width * 0.7, y: canvasSize.height * 0.8,
-        width: 180, height: 180 * (img.height / img.width),
+        x: hasPresetX ? canvasSize.width * signaturePresetLayout.xRatio : canvasSize.width * 0.7,
+        y: hasPresetY ? canvasSize.height * signaturePresetLayout.yRatio : canvasSize.height * 0.8,
+        width: hasPresetW
+          ? canvasSize.width * signaturePresetLayout.widthRatio
+          : 180,
+        height: hasPresetH
+          ? canvasSize.height * signaturePresetLayout.heightRatio
+          : 180 * (img.height / img.width),
         data: sig.data
       };
       setSignatureImage(img);
@@ -665,16 +728,46 @@ const GoodMorningGeneratorV5 = () => {
     });
   };
 
-  const calculateFontSize = useCallback((ctx, text, w, h, font, weight = 400) => {
-    const area = (w * h) / 1.55;
-    let size = 12;
+  const calculateFontSize = useCallback((ctx, b, font, weight = 400) => {
+    const text = b.text || '字';
+    const minSize = 12;
+    const maxSize = 260;
     const f = font.includes('"') || font.includes(',') ? font : `"${font}"`;
-    while (size < 140) {
-      size++;
+
+    const fitHorizontal = (size) => {
+      const p = 14;
+      const mw = Math.max(20, b.width - p * 2);
+      const mh = Math.max(20, b.height - p * 2);
+      const lh = size * 1.28;
+      let lines = 1;
+      let cur = '';
+      text.split('').forEach((char) => {
+        const next = cur + char;
+        if (cur && ctx.measureText(next).width > mw) {
+          lines += 1;
+          cur = char;
+        } else {
+          cur = next;
+        }
+      });
+      return (lines * lh) <= mh;
+    };
+
+    const fitVertical = (size) => {
+      const p = 12;
+      const sp = 4;
+      const cw = Math.max(1, ctx.measureText('測').width);
+      const cols = Math.max(1, Math.floor((b.width - p * 2 + sp) / (cw + sp)));
+      const rows = Math.max(1, Math.floor((b.height - p * 2 + sp) / (size + sp)));
+      return text.length <= cols * rows;
+    };
+
+    for (let size = maxSize; size >= minSize; size -= 2) {
       ctx.font = `${weight} ${size}px ${f}`;
-      if (ctx.measureText(text || '字').width * (size * 1.22) > area) break;
+      if (b.height > b.width ? fitVertical(size) : fitHorizontal(size)) return size;
     }
-    return Math.max(size - 4, 12);
+
+    return minSize;
   }, []);
 
   const drawHorizontal = useCallback((ctx, b, fontSize) => {
@@ -755,16 +848,19 @@ const GoodMorningGeneratorV5 = () => {
     textBlocks.filter(b => b.visible !== false).forEach(b => {
       const isSel = selectionSet.has(b.id);
       const isPri = primaryId === b.id;
+      const isMobileUi = window.innerWidth <= 1120;
       const fDef = BUILTIN_FONTS.find(f => f.name === b.font);
       const font = fDef?.family || `"${b.font}"`;
       ctx.save();
       if (isSel) {
-        ctx.strokeStyle = isPri ? '#1d5f8a' : '#d18d35'; ctx.lineWidth = isPri ? 3 : 2;
+        const handleSize = isMobileUi ? 16 : 10;
+        ctx.strokeStyle = isPri ? '#1d5f8a' : '#d18d35';
+        ctx.lineWidth = isPri ? (isMobileUi ? 5 : 3) : (isMobileUi ? 4 : 2);
         if (!isPri) ctx.setLineDash([5, 5]);
         ctx.strokeRect(b.x, b.y, b.width, b.height);
         if (isPri) {
           ctx.fillStyle = '#1d5f8a';
-          [[b.x, b.y], [b.x + b.width, b.y], [b.x, b.y + b.height], [b.x + b.width, b.y + b.height]].forEach(([hx, hy]) => ctx.fillRect(hx - 5, hy - 5, 10, 10));
+          [[b.x, b.y], [b.x + b.width, b.y], [b.x, b.y + b.height], [b.x + b.width, b.y + b.height]].forEach(([hx, hy]) => ctx.fillRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize));
         }
       }
       if (b.type === 'signature' && b.data) {
@@ -772,7 +868,7 @@ const GoodMorningGeneratorV5 = () => {
         else { const i = new Image(); i.onload = () => { setSignatureImage(i); setHistoryVersion(v => v + 1); }; i.src = b.data; }
       } else {
         const weight = b.fontWeight || 400;
-        const size = calculateFontSize(ctx, b.text, b.width, b.height, font, weight);
+        const size = calculateFontSize(ctx, b, font, weight);
         ctx.font = `${weight} ${size}px ${font}`; ctx.textBaseline = 'top';
         if (b.height > b.width) drawVertical(ctx, b, size); else drawHorizontal(ctx, b, size);
       }

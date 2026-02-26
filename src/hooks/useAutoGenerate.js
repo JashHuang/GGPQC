@@ -459,6 +459,17 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
 
   const safeTone = getRegionTone(ctx, safeArea);
   const palette = selectPalette(background, blessing.id, safeTone);
+  const rememberedStyle = settings.editorStylePrefs || {};
+  const greetingStyle = {
+    fillColor: rememberedStyle.greeting?.fillColor || palette.greeting,
+    strokeColor: rememberedStyle.greeting?.strokeColor || palette.stroke,
+    hasStroke: rememberedStyle.greeting?.hasStroke !== false,
+  };
+  const wisdomStyle = {
+    fillColor: rememberedStyle.wisdom?.fillColor || palette.body,
+    strokeColor: rememberedStyle.wisdom?.strokeColor || palette.stroke,
+    hasStroke: rememberedStyle.wisdom?.hasStroke !== false,
+  };
   const greetingText = '早安';
   const preset = TYPOGRAPHY_PRESETS[settings.typographyMode] || TYPOGRAPHY_PRESETS.balanced;
   const signatureMode = settings.signatureMode || 'text';
@@ -569,8 +580,8 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
     greetingBox.y,
     greetingFit.lineHeight,
     {
-      fillColor: palette.greeting,
-      strokeColor: palette.stroke,
+      fillColor: greetingStyle.fillColor,
+      strokeColor: greetingStyle.hasStroke ? greetingStyle.strokeColor : null,
       strokeWidth: Math.max(2.5, greetingFit.size * 0.08),
     },
   );
@@ -585,8 +596,8 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
     wisdomStartY,
     wisdomBest.fit.lineHeight,
     {
-      fillColor: palette.body,
-      strokeColor: palette.stroke,
+      fillColor: wisdomStyle.fillColor,
+      strokeColor: wisdomStyle.hasStroke ? wisdomStyle.strokeColor : null,
       strokeWidth: Math.max(1.5, wisdomBest.fit.size * 0.06),
     },
   );
@@ -648,18 +659,37 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
 
   let signatureImageBlock = null;
   if (hasSignatureImage && signatureImageSize) {
-    const placement = getSignaturePlacement(
+    const savedSignature = rememberedStyle.signature;
+    let placement = getSignaturePlacement(
       safeArea,
       signatureImageSize.width,
       signatureImageSize.height,
       signaturePosition,
     );
+    let drawWidth = signatureImageSize.width;
+    let drawHeight = signatureImageSize.height;
+
+    if (
+      savedSignature
+      && Number.isFinite(savedSignature.xRatio)
+      && Number.isFinite(savedSignature.yRatio)
+      && Number.isFinite(savedSignature.widthRatio)
+      && Number.isFinite(savedSignature.heightRatio)
+    ) {
+      placement = {
+        x: canvas.width * savedSignature.xRatio,
+        y: canvas.height * savedSignature.yRatio,
+      };
+      drawWidth = Math.max(60, canvas.width * savedSignature.widthRatio);
+      drawHeight = Math.max(24, canvas.height * savedSignature.heightRatio);
+    }
+
     ctx.drawImage(
       signatureAssetImage,
       placement.x,
       placement.y,
-      signatureImageSize.width,
-      signatureImageSize.height,
+      drawWidth,
+      drawHeight,
     );
     signatureImageBlock = {
       id: 'v6-signature-image',
@@ -669,8 +699,8 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
       locked: false,
       x: placement.x,
       y: placement.y,
-      width: signatureImageSize.width,
-      height: signatureImageSize.height,
+      width: drawWidth,
+      height: drawHeight,
       data: signatureAssetImage.src,
     };
   }
@@ -688,10 +718,10 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
       width: greetingBox.width,
       height: greetingBox.height,
       font: '思源黑體 (TC)',
-      fillColor: palette.greeting,
-      strokeColor: palette.stroke,
+      fillColor: greetingStyle.fillColor,
+      strokeColor: greetingStyle.strokeColor,
       fontWeight: 800,
-      hasStroke: true,
+      hasStroke: greetingStyle.hasStroke,
       textAlign: 'center',
       fontSize: greetingFit.size,
       lineHeight: greetingFit.lineHeight,
@@ -708,10 +738,10 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
       width: wisdomBest.rect.width,
       height: wisdomTextHeight,
       font: '思源宋體 (TC)',
-      fillColor: palette.body,
-      strokeColor: palette.stroke,
+      fillColor: wisdomStyle.fillColor,
+      strokeColor: wisdomStyle.strokeColor,
       fontWeight: 700,
-      hasStroke: true,
+      hasStroke: wisdomStyle.hasStroke,
       textAlign: 'center',
       fontSize: wisdomBest.fit.size,
       lineHeight: wisdomBest.fit.lineHeight,
@@ -831,7 +861,7 @@ const renderSceneToCanvas = async (editorScene, options = {}) => {
         maxWidth: Math.max(10, block.width),
         maxHeight: Math.max(10, block.height),
         minSize: 20,
-        maxSize: 180,
+        maxSize: 260,
         weight,
         lineHeightRatio: 1.32,
         maxLines: 8,
@@ -849,7 +879,7 @@ const renderSceneToCanvas = async (editorScene, options = {}) => {
         maxWidth: Math.max(10, block.width),
         maxHeight: Math.max(10, block.height),
         minSize: 20,
-        maxSize: 180,
+        maxSize: 260,
         weight,
         lineHeightRatio: 1.32,
         maxLines: 8,

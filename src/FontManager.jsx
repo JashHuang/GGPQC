@@ -25,7 +25,7 @@ const openDB = () => {
 /**
  * Get all fonts from DB
  */
-const getAllFontsFromDB = async () => {
+export const getAllFontsFromDB = async () => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, 'readonly');

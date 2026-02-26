@@ -33,8 +33,6 @@ const CompletedPage = ({ imageData, isRegenerating, onRegenerate, onChangeBackgr
 
       if (navigator.share) {
         const payload = {
-          title: '早安圖',
-          text: '早安！送你一張祝福圖',
           files: [file],
         };
 
@@ -44,9 +42,7 @@ const CompletedPage = ({ imageData, isRegenerating, onRegenerate, onChangeBackgr
         }
       }
 
-      const text = encodeURIComponent('早安！我分享一張祝福圖給你');
-      window.open(`https://line.me/R/msg/text/?${text}`, '_blank');
-      alert('此裝置不支援直接分享圖片到 LINE，已改為開啟 LINE 文字分享。您也可以先下載圖片再傳送。');
+      alert('此裝置不支援直接分享圖片到 LINE，請先下載圖片再傳送。');
     } catch (error) {
       if (error?.name !== 'AbortError') {
         console.error('分享到 LINE 失敗:', error);
