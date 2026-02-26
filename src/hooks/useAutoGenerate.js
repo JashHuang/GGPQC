@@ -255,10 +255,25 @@ const loadDataImage = (src) =>
     img.src = src;
   });
 
+const BUILTIN_FONT_FAMILY_BY_NAME = {
+  '思源黑體 (TC)': '"Noto Sans TC", sans-serif',
+  '思源宋體 (TC)': '"Noto Serif TC", serif',
+  '昭源圓體 (TC)': '"Chiron GoRound TC", sans-serif',
+  '霞鶩文楷 (TC)': '"LXGW WenKai TC", sans-serif',
+  '馬善政楷體': '"Ma Shan Zheng", cursive',
+  '至莽行書': '"Zhi Mang Xing", cursive',
+  '小薇 LOGO 體': '"ZCOOL XiaoWei", sans-serif',
+  '青刻黃油體': '"ZCOOL QingKe HuangYou", sans-serif',
+  '系統預設黑體': 'sans-serif',
+  '系統預設明體': 'serif',
+};
+
 const normalizeBlockFont = (fontName) => {
   if (!fontName) return FONT_STACK;
   if (fontName.includes('"') || fontName.includes(',')) return fontName;
-  return FONT_STACK;
+  const mappedFamily = BUILTIN_FONT_FAMILY_BY_NAME[fontName];
+  if (mappedFamily) return mappedFamily;
+  return `"${fontName}", ${FONT_STACK}`;
 };
 
 const FONT_STACK = '"Noto Sans TC", "Microsoft JhengHei", sans-serif';
@@ -327,9 +342,10 @@ const fitTextInBox = (ctx, {
   weight = 700,
   lineHeightRatio = 1.35,
   maxLines = Number.POSITIVE_INFINITY,
+  fontFamily = FONT_STACK,
 }) => {
   for (let size = maxSize; size >= minSize; size -= 2) {
-    ctx.font = `${weight} ${size}px ${FONT_STACK}`;
+    ctx.font = `${weight} ${size}px ${fontFamily}`;
     const lines = wrapText(ctx, text, maxWidth);
     const lineHeight = size * lineHeightRatio;
     const textHeight = lines.length * lineHeight;
@@ -339,7 +355,7 @@ const fitTextInBox = (ctx, {
     }
   }
 
-  ctx.font = `${weight} ${minSize}px ${FONT_STACK}`;
+  ctx.font = `${weight} ${minSize}px ${fontFamily}`;
   const lines = wrapText(ctx, text, maxWidth);
   const lineHeight = minSize * lineHeightRatio;
   return { size: minSize, lines: lines.slice(0, maxLines), lineHeight, textHeight: lines.length * lineHeight };
@@ -431,6 +447,116 @@ const drawLines = (ctx, lines, x, startY, lineHeight, styles) => {
   });
 };
 
+const estimateLegacyFontSize = (ctx, block, fontFamily, weight = 400) => {
+  const text = block.text || '字';
+  const minSize = 12;
+  const maxSize = 260;
+
+  const fitHorizontal = (size) => {
+    const padding = 14;
+    const maxWidth = Math.max(20, block.width - (padding * 2));
+    const maxHeight = Math.max(20, block.height - (padding * 2));
+    const lineHeight = size * 1.28;
+    let lines = 1;
+    let current = '';
+    text.split('').forEach((char) => {
+      const next = current + char;
+      if (current && ctx.measureText(next).width > maxWidth) {
+        lines += 1;
+        current = char;
+      } else {
+        current = next;
+      }
+    });
+    return (lines * lineHeight) <= maxHeight;
+  };
+
+  const fitVertical = (size) => {
+    const padding = 12;
+    const spacing = 4;
+    const charWidth = Math.max(1, ctx.measureText('測').width);
+    const cols = Math.max(1, Math.floor((block.width - padding * 2 + spacing) / (charWidth + spacing)));
+    const rows = Math.max(1, Math.floor((block.height - padding * 2 + spacing) / (size + spacing)));
+    return text.length <= cols * rows;
+  };
+
+  for (let size = maxSize; size >= minSize; size -= 2) {
+    ctx.font = `${weight} ${size}px ${fontFamily}`;
+    if (block.height > block.width ? fitVertical(size) : fitHorizontal(size)) return size;
+  }
+
+  return minSize;
+};
+
+const drawLegacyHorizontalText = (ctx, block, fontSize) => {
+  const padding = 14;
+  const maxWidth = block.width - padding * 2;
+  const lines = [];
+  let current = '';
+
+  (block.text || '').split('').forEach((char) => {
+    if (ctx.measureText(current + char).width > maxWidth && current) {
+      lines.push(current);
+      current = char;
+    } else {
+      current += char;
+    }
+  });
+  if (current) lines.push(current);
+
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.imageSmoothingQuality = 'high';
+  ctx.lineWidth = Math.max(2, fontSize * 0.05);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+
+  lines.forEach((line, index) => {
+    const x = Math.round(block.x + padding);
+    const y = Math.round(block.y + padding + index * fontSize * 1.28);
+    if (block.hasStroke !== false) {
+      ctx.strokeStyle = block.strokeColor || '#000000';
+      ctx.strokeText(line, x, y);
+    }
+    ctx.fillStyle = block.fillColor || '#ffffff';
+    ctx.fillText(line, x, y);
+  });
+};
+
+const drawLegacyVerticalText = (ctx, block, fontSize) => {
+  const spacing = 4;
+  const padding = 12;
+  const charWidth = ctx.measureText('測').width;
+  let x = block.x + block.width - padding - charWidth;
+  let y = block.y + padding;
+
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.imageSmoothingQuality = 'high';
+  ctx.lineWidth = Math.max(2, fontSize * 0.05);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+
+  (block.text || '').split('').forEach((char) => {
+    if (y + fontSize > block.y + block.height - padding) {
+      y = block.y + padding;
+      x -= charWidth + spacing;
+    }
+    if (x < block.x + padding) return;
+
+    const drawX = Math.round(x);
+    const drawY = Math.round(y);
+
+    if (block.hasStroke !== false) {
+      ctx.strokeStyle = block.strokeColor || '#000000';
+      ctx.strokeText(char, drawX, drawY);
+    }
+    ctx.fillStyle = block.fillColor || '#ffffff';
+    ctx.fillText(char, drawX, drawY);
+    y += fontSize + spacing;
+  });
+};
+
 const getSignaturePlacement = (safeArea, width, height, position) => {
   const margin = Math.max(12, safeArea.width * 0.03);
   switch (position) {
@@ -460,12 +586,16 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
   const safeTone = getRegionTone(ctx, safeArea);
   const palette = selectPalette(background, blessing.id, safeTone);
   const rememberedStyle = settings.editorStylePrefs || {};
+  const greetingFontFamily = normalizeBlockFont(rememberedStyle.greeting?.font);
+  const wisdomFontFamily = normalizeBlockFont(rememberedStyle.wisdom?.font);
   const greetingStyle = {
+    font: rememberedStyle.greeting?.font || '思源黑體 (TC)',
     fillColor: rememberedStyle.greeting?.fillColor || palette.greeting,
     strokeColor: rememberedStyle.greeting?.strokeColor || palette.stroke,
     hasStroke: rememberedStyle.greeting?.hasStroke !== false,
   };
   const wisdomStyle = {
+    font: rememberedStyle.wisdom?.font || '思源宋體 (TC)',
     fillColor: rememberedStyle.wisdom?.fillColor || palette.body,
     strokeColor: rememberedStyle.wisdom?.strokeColor || palette.stroke,
     hasStroke: rememberedStyle.wisdom?.hasStroke !== false,
@@ -497,6 +627,7 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
     weight: 800,
     lineHeightRatio: 1.1,
     maxLines: 1,
+    fontFamily: greetingFontFamily,
   });
 
   const signatureFit = hasSignatureText ? fitTextInBox(ctx, {
@@ -558,6 +689,7 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
       weight: 700,
       lineHeightRatio: preset.wisdom.lineHeightRatio,
       maxLines: preset.wisdom.maxLines,
+      fontFamily: wisdomFontFamily,
     });
     const tone = getRegionTone(ctx, rect);
     const contrastScore = tone
@@ -572,7 +704,7 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
 
-  ctx.font = `800 ${greetingFit.size}px ${FONT_STACK}`;
+  ctx.font = `800 ${greetingFit.size}px ${greetingFontFamily}`;
   drawLines(
     ctx,
     greetingFit.lines,
@@ -586,7 +718,7 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
     },
   );
 
-  ctx.font = `700 ${wisdomBest.fit.size}px ${FONT_STACK}`;
+  ctx.font = `700 ${wisdomBest.fit.size}px ${wisdomFontFamily}`;
   const wisdomTextHeight = wisdomBest.fit.lines.length * wisdomBest.fit.lineHeight;
   const wisdomStartY = wisdomBest.rect.y + Math.max(0, (wisdomBest.rect.height - wisdomTextHeight) / 2);
   drawLines(
@@ -645,7 +777,7 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
       y: placement.y,
       width: measuredWidth,
       height: signatureFit.lineHeight,
-      font: '思源黑體 (TC)',
+      font: greetingStyle.font,
       fillColor: palette.signature,
       strokeColor: palette.stroke,
       fontWeight: 500,
@@ -737,7 +869,7 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
       y: wisdomStartY,
       width: wisdomBest.rect.width,
       height: wisdomTextHeight,
-      font: '思源宋體 (TC)',
+      font: wisdomStyle.font,
       fillColor: wisdomStyle.fillColor,
       strokeColor: wisdomStyle.strokeColor,
       fontWeight: 700,
@@ -853,6 +985,46 @@ const renderSceneToCanvas = async (editorScene, options = {}) => {
     const weight = block.fontWeight || 700;
     const fontFamily = normalizeBlockFont(block.font);
     const isWisdom = block.type === 'wisdom';
+    const isLegacyBlock = !block.textAlign;
+    const isVerticalLayout = block.height > block.width;
+
+    if (isLegacyBlock) {
+      const legacySize = Number.isFinite(block.fontSize) && block.fontSize > 0
+        ? block.fontSize
+        : estimateLegacyFontSize(ctx, block, fontFamily, weight);
+      ctx.font = `${weight} ${legacySize}px ${fontFamily}`;
+
+      if (isVerticalLayout) {
+        drawLegacyVerticalText(ctx, block, legacySize);
+      } else {
+        drawLegacyHorizontalText(ctx, block, legacySize);
+      }
+
+      blocks[i] = {
+        ...block,
+        fontSize: legacySize,
+        lineHeight: block.lineHeight || (isVerticalLayout ? legacySize + 4 : legacySize * 1.28),
+        fillColor: colorToHex(block.fillColor, '#ffffff'),
+        strokeColor: colorToHex(block.strokeColor, '#000000'),
+      };
+      continue;
+    }
+
+    if (isVerticalLayout) {
+      const verticalSize = Number.isFinite(block.fontSize) && block.fontSize > 0
+        ? block.fontSize
+        : estimateLegacyFontSize(ctx, block, fontFamily, weight);
+      ctx.font = `${weight} ${verticalSize}px ${fontFamily}`;
+      drawLegacyVerticalText(ctx, block, verticalSize);
+      blocks[i] = {
+        ...block,
+        fontSize: verticalSize,
+        lineHeight: block.lineHeight || (verticalSize + 4),
+        fillColor: colorToHex(block.fillColor, '#ffffff'),
+        strokeColor: colorToHex(block.strokeColor, '#000000'),
+      };
+      continue;
+    }
 
     let drawLinesData;
     if (isWisdom) {
@@ -883,6 +1055,7 @@ const renderSceneToCanvas = async (editorScene, options = {}) => {
         weight,
         lineHeightRatio: 1.32,
         maxLines: 8,
+        fontFamily,
       });
     }
 
@@ -914,6 +1087,7 @@ const renderSceneToCanvas = async (editorScene, options = {}) => {
 
     blocks[i] = {
       ...block,
+      lineHeight: block.lineHeight || drawLinesData.lineHeight,
       fillColor: colorToHex(block.fillColor, '#ffffff'),
       strokeColor: colorToHex(block.strokeColor, '#000000'),
     };
@@ -1022,8 +1196,13 @@ export const useAutoGenerate = () => {
       let textStyles;
       let editorScene;
 
-      if (currentData?.editorScene?.backgroundDataUrl && Array.isArray(currentData.editorScene.textBlocks)) {
-        const sceneResult = await renderSceneToCanvas(currentData.editorScene, { blessingText: blessing.text });
+      if (currentData?.editorScene && Array.isArray(currentData.editorScene.textBlocks)) {
+        const sceneResult = await renderSceneToCanvas(currentData.editorScene, {
+          blessingText: blessing.text,
+          backgroundDataUrl: currentData.editorScene.backgroundDataUrl
+            || currentData?.background?.imageUrl
+            || null,
+        });
         canvas = sceneResult.canvas;
         editorScene = sceneResult.editorScene;
         textStyles = {

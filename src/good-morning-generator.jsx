@@ -284,12 +284,14 @@ const GoodMorningGeneratorV5 = () => {
       } = e.detail;
 
       if (rememberedStyle?.greeting) {
+        if (rememberedStyle.greeting.font) setGreetingFont(rememberedStyle.greeting.font);
         setGreetingFillColor(rememberedStyle.greeting.fillColor || DEFAULT_USER_STYLE_SETTINGS.greetingFillColor);
         setGreetingStrokeColor(rememberedStyle.greeting.strokeColor || DEFAULT_USER_STYLE_SETTINGS.greetingStrokeColor);
         setGreetingHasStroke(rememberedStyle.greeting.hasStroke !== false);
       }
 
       if (rememberedStyle?.wisdom) {
+        if (rememberedStyle.wisdom.font) setWisdomFont(rememberedStyle.wisdom.font);
         setWisdomFillColor(rememberedStyle.wisdom.fillColor || DEFAULT_USER_STYLE_SETTINGS.wisdomFillColor);
         setWisdomStrokeColor(rememberedStyle.wisdom.strokeColor || DEFAULT_USER_STYLE_SETTINGS.wisdomStrokeColor);
         setWisdomHasStroke(rememberedStyle.wisdom.hasStroke !== false);
@@ -319,7 +321,7 @@ const GoodMorningGeneratorV5 = () => {
         y: canvasHeight * 0.15,
         width: canvasWidth * 0.8,
         height: canvasHeight * 0.15,
-        font: greetingFont,
+        font: rememberedStyle?.greeting?.font || greetingFont,
         fillColor: rememberedStyle?.greeting?.fillColor || fillColor,
         strokeColor: rememberedStyle?.greeting?.strokeColor || strokeColor,
         fontWeight: 700,
@@ -338,7 +340,7 @@ const GoodMorningGeneratorV5 = () => {
         y: canvasHeight * 0.35,
         width: canvasWidth * safeArea.width,
         height: canvasHeight * 0.4,
-        font: wisdomFont,
+        font: rememberedStyle?.wisdom?.font || wisdomFont,
         fillColor: rememberedStyle?.wisdom?.fillColor || fillColor,
         strokeColor: rememberedStyle?.wisdom?.strokeColor || strokeColor,
         fontWeight: 400,
@@ -347,7 +349,7 @@ const GoodMorningGeneratorV5 = () => {
 
       const fallbackBlocks = [greetingBlock, wisdomBlock];
 
-      if (editorScene?.backgroundDataUrl && Array.isArray(editorScene.textBlocks) && editorScene.textBlocks.length > 0) {
+      if (Array.isArray(editorScene?.textBlocks) && editorScene.textBlocks.length > 0) {
         const sceneImageBlock = editorScene.textBlocks.find((b) => b.type === 'signature' && b.data);
         const handleScene = (img) => {
           pushHistory(textBlocks);
@@ -376,7 +378,17 @@ const GoodMorningGeneratorV5 = () => {
           setSelectedIds(firstId ? [firstId] : []);
           setPrimaryId(firstId);
         };
-        sceneBg.src = editorScene.backgroundDataUrl;
+        const sceneBackgroundSrc = editorScene.backgroundDataUrl || background?.imageUrl || null;
+        if (!sceneBackgroundSrc) {
+          setBackgroundImage(null);
+          setCanvasSize(editorScene.canvasSize || { width: canvasWidth, height: canvasHeight });
+          setTextBlocks(editorScene.textBlocks);
+          const firstId = editorScene.textBlocks[0]?.id || null;
+          setSelectedIds(firstId ? [firstId] : []);
+          setPrimaryId(firstId);
+          return;
+        }
+        sceneBg.src = sceneBackgroundSrc;
         return;
       }
 

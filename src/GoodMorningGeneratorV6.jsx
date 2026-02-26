@@ -51,11 +51,13 @@ const extractEditorStylePrefs = (editorScene) => {
 
   const next = {
     greeting: greeting ? {
+      font: greeting.font || null,
       fillColor: greeting.fillColor || '#ffffff',
       strokeColor: greeting.strokeColor || '#000000',
       hasStroke: greeting.hasStroke !== false,
     } : null,
     wisdom: wisdom ? {
+      font: wisdom.font || null,
       fillColor: wisdom.fillColor || '#ffffff',
       strokeColor: wisdom.strokeColor || '#000000',
       hasStroke: wisdom.hasStroke !== false,
@@ -166,6 +168,7 @@ const V6Content = () => {
   }, [generatedImage, generatedData, navigate]);
 
   const hideBottomNav = ['/auto-generate', '/completed', '/diy'].includes(location.pathname);
+  const showBackButton = location.pathname === '/completed';
 
   return (
     <div className="gm6-page">
@@ -225,7 +228,7 @@ const V6Content = () => {
           />
         </Routes>
         
-        {hideBottomNav && (
+        {showBackButton && (
           <button 
             className="gm6-back-btn"
             onClick={() => navigate(-1)}
