@@ -118,6 +118,8 @@ const MobileControls = ({
   setGreetingWeight,
   setWisdomWeight,
   onDeleteSelected,
+  isFullscreen,
+  toggleFullscreen,
 }) => {
   return (
     <div className="gm5-mobile-bottom-tools">
@@ -272,6 +274,26 @@ const MobileControls = ({
               </svg>
             )
           },
+          {
+            id: 'fullscreen',
+            label: isFullscreen ? '一般' : '全螢幕',
+            onClick: toggleFullscreen,
+            icon: isFullscreen ? (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="4 14 10 14 10 20" />
+                <polyline points="20 10 14 10 14 4" />
+                <line x1="14" y1="10" x2="21" y2="3" />
+                <line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+            ) : (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="15 3 21 3 21 9" />
+                <polyline points="9 21 3 21 3 15" />
+                <line x1="21" y1="3" x2="14" y2="10" />
+                <line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+            )
+          },
         ].map(tab => (
           <button
             key={tab.id}
@@ -283,7 +305,7 @@ const MobileControls = ({
               background: 'transparent',
               boxShadow: 'none',
               border: 'none',
-              color: activeTab === tab.id && isExpanded ? 'var(--gm-accent)' : 'var(--gm-text-muted)',
+              color: (activeTab === tab.id && isExpanded) ? 'var(--gm-accent)' : 'var(--gm-text-muted)',
               minHeight: '56px',
               padding: '6px 8px',
               flex: 1,
@@ -292,11 +314,15 @@ const MobileControls = ({
               transition: 'color 0.2s ease',
             }}
             onClick={() => {
-              if (activeTab === tab.id) {
-                setIsExpanded(!isExpanded);
+              if (tab.onClick) {
+                tab.onClick();
               } else {
-                setActiveTab(tab.id);
-                setIsExpanded(true);
+                if (activeTab === tab.id) {
+                  setIsExpanded(!isExpanded);
+                } else {
+                  setActiveTab(tab.id);
+                  setIsExpanded(true);
+                }
               }
             }}
           >

@@ -162,6 +162,7 @@ const GoodMorningGeneratorV5 = () => {
   const [activeSidebarTab, setActiveSidebarTab] = useState('text');
   const [activeMobileTab, setActiveMobileTab] = useState('design');
   const [isMobileDrawerExpanded, setIsMobileDrawerExpanded] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const selectionSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const maxZoom = 250;
@@ -178,7 +179,7 @@ const GoodMorningGeneratorV5 = () => {
 
     // 動態計算可用高度：總高度 - (Header高度 + Toolbar高度 + 底部工具列高度)
     let availableHeight = isMobile
-      ? window.innerHeight - 260 // 手機版保留大約 260px 給 Header、頂部工具列及底部 Drawer
+      ? window.innerHeight - (isFullscreen ? 180 : 260) // 全螢幕時減少保留空間，因為 Header 已隱藏
       : window.innerHeight - wrapRef.current.getBoundingClientRect().top - 40;
 
     // 避免負數或極端小值
@@ -207,8 +208,35 @@ const GoodMorningGeneratorV5 = () => {
     // 延遲執行以確保 DOM 已完成渲染與佈局計算
     const timer = setTimeout(fitToScreen, 100);
     window.addEventListener('resize', fitToScreen);
-    return () => window.removeEventListener('resize', fitToScreen);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', fitToScreen);
+    };
   }, [fitToScreen]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+      // 全螢幕切換後重新計算畫布大小
+      setTimeout(fitToScreen, 100);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, [fitToScreen]);
+
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+      }
+    } catch (err) {
+      console.error(`全螢幕切換失敗: ${err.message}`);
+    }
+  }, []);
 
   // Sync theme
   useEffect(() => {
@@ -1115,7 +1143,7 @@ const GoodMorningGeneratorV5 = () => {
   }, [nudge, deleteSelected, undo, redo, saveImage]);
 
   return (
-    <div className={`gm5-page theme-${theme}`}>
+    <div className={`gm5-page theme-${theme} ${isFullscreen ? 'is-fullscreen' : ''}`}>
       <div className="gm5-shell">
         <header className="gm5-header">
           <div className="gm5-header-content">
@@ -1287,7 +1315,7 @@ const GoodMorningGeneratorV5 = () => {
               </div>
             </div>
 
-            <div className="absolute bottom-4 right-4 bg-white/80 backdrop-blur-md px-4 py-2 flex items-center gap-2 rounded-2xl shadow-lg border border-black/5 z-20">
+            <div className="gm5-zoom-badge absolute bottom-4 right-4 bg-white/80 backdrop-blur-md px-4 py-2 flex items-center gap-2 rounded-2xl shadow-lg border border-black/5 z-20">
               <span className="text-[11px] font-bold text-gray-500 w-10 text-right">{zoom}%</span>
               <input type="range" min={minZoom} max={maxZoom} value={zoom} onChange={e => setZoom(parseInt(e.target.value, 10))} className="w-24 md:w-32 accent-[#b46b2b]" />
             </div>

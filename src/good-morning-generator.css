@@ -621,6 +621,10 @@
     display: none;
   }
 
+  .is-fullscreen .gm5-header {
+    display: none;
+  }
+
   .gm5-header {
     padding: 6px 10px;
     margin-bottom: 4px;
@@ -690,11 +694,23 @@
 
   /* Zoom slider reposition on mobile */
   .gm5-zoom-badge {
-    bottom: 8px;
-    right: 8px;
+    bottom: 80px; /* 避開底部導覽列 */
+    right: 12px;
     padding: 6px 10px;
     border-radius: 14px;
     gap: 6px;
+    background: var(--gm-surface);
+    border: 1px solid var(--gm-border);
+    transition: var(--gm-transition);
+  }
+
+  .is-fullscreen .gm5-zoom-badge {
+    bottom: 80px; /* 全螢幕時也保持在這個位置 */
+    opacity: 0.6;
+  }
+
+  .is-fullscreen .gm5-zoom-badge:hover {
+    opacity: 1;
   }
 
   .gm5-mobile-bottom-tools {
