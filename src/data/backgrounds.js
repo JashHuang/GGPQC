@@ -328,3 +328,27 @@ const DEFAULT_BLESSINGS = [
 ];
 
 export { DEFAULT_BLESSINGS };
+
+export const getPexelsBackgroundCandidates = async (theme, options = {}) => {
+  const themeQueries = {
+    sunrise: 'sunrise+morning',
+    flower: 'flower+bloom',
+    mountain: 'mountain+landscape',
+    festival: 'celebration+decoration',
+    general: 'nature+beautiful',
+  };
+  const query = themeQueries[theme] || themeQueries.general;
+  return [];
+};
+
+export const getUnsplashBackgroundCandidates = async (theme, options = {}) => {
+  const themeQueries = {
+    sunrise: 'sunrise',
+    flower: 'flowers',
+    mountain: 'mountains',
+    festival: 'celebration',
+    general: 'nature',
+  };
+  const query = themeQueries[theme] || themeQueries.general;
+  return [];
+};
