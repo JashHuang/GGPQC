@@ -3,11 +3,18 @@ import PrimaryButton from '../ui/PrimaryButton';
 import SecondaryButton from '../ui/SecondaryButton';
 import Card from '../ui/Card';
 
-const HomePage = ({ settings, onAutoGenerate, onDIY, onSettings }) => {
+const ASPECT_RATIOS = [
+  { value: '1:1', label: '方形' },
+  { value: '9:16', label: '直式' },
+  { value: '4:3', label: '標準' },
+];
+
+const HomePage = ({ settings, onAutoGenerate, onDIY, onSettings, onUpdateSettings }) => {
   const today = new Date();
   const dateString = `${today.getMonth() + 1}月${today.getDate()}日`;
   const dayNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
   const dayName = dayNames[today.getDay()];
+  const currentRatio = settings.aspectRatio || '1:1';
 
   return (
     <div className="gm6-container">
@@ -22,6 +29,23 @@ const HomePage = ({ settings, onAutoGenerate, onDIY, onSettings }) => {
         <div className="gm6-preview-placeholder">
           <div className="gm6-preview-placeholder-icon">☀️</div>
           <p>今日早安圖</p>
+        </div>
+      </div>
+
+      <div className="gm6-ratio-selector">
+        <div className="gm6-ratio-label">選擇尺寸</div>
+        <div className="gm6-ratio-options">
+          {ASPECT_RATIOS.map((ratio) => (
+            <button
+              key={ratio.value}
+              type="button"
+              className={`gm6-ratio-btn ${currentRatio === ratio.value ? 'is-active' : ''}`}
+              onClick={() => onUpdateSettings({ aspectRatio: ratio.value })}
+            >
+              <span className="ratio-value">{ratio.value}</span>
+              <span className="ratio-name">{ratio.label}</span>
+            </button>
+          ))}
         </div>
       </div>
 

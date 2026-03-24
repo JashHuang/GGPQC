@@ -12,6 +12,12 @@ import {
 import { getSignatureById } from '../data/signatureStore';
 import { isOffline, getCacheSize, addOnlineStatusListener } from '../utils/cacheManager';
 
+const ASPECT_DIMENSIONS = {
+  '1:1': { width: 1080, height: 1080 },
+  '9:16': { width: 1080, height: 1920 },
+  '4:3': { width: 1080, height: 810 },
+};
+
 const RECENT_HISTORY_KEY = 'gm-v6-recent-history-v1';
 const MAX_RECENT_HISTORY = 12;
 const SOURCE_HEALTH_KEY = 'gm-v6-image-source-health-v1';
@@ -1047,9 +1053,10 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
 };
 
 const createComposedImage = async (background, blessing, settings) => {
+  const dimensions = ASPECT_DIMENSIONS[settings.aspectRatio] || ASPECT_DIMENSIONS['1:1'];
   const canvas = document.createElement('canvas');
-  canvas.width = 1080;
-  canvas.height = 1080;
+  canvas.width = dimensions.width;
+  canvas.height = dimensions.height;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
   const resolvedBackgroundResult = await resolveBackgroundImage(background);

@@ -39,6 +39,11 @@
   --gm6-height-primary-btn: 56px;
   --gm6-height-secondary-btn: 52px;
   --gm6-height-input: 52px;
+
+  /* Aspect Ratio Selector */
+  --gm6-ratio-btn-height: 48px;
+  --gm6-ratio-btn-min-width: 80px;
+  --gm6-ratio-btn-radius: 12px;
 }
 
 .gm6-page {

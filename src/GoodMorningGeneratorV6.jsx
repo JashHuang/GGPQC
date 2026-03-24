@@ -21,6 +21,7 @@ const getDefaultSettings = () => ({
   signatureMode: 'text',
   signatureAssetId: null,
   signaturePosition: 'bottom-right',
+  aspectRatio: '1:1',
   editorStylePrefs: {
     greeting: null,
     wisdom: null,
@@ -194,6 +195,7 @@ const V6Content = () => {
                 onAutoGenerate={() => navigate('/auto-generate')}
                 onDIY={() => navigate('/diy')}
                 onSettings={() => navigate('/settings')}
+                onUpdateSettings={updateSettings}
               />
             } 
           />
