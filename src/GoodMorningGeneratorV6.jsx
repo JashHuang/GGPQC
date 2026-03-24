@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import HomePage from './components/pages/HomePage';
 import AutoGenPage from './components/pages/AutoGenPage';
@@ -7,6 +7,8 @@ import DIYPage from './components/pages/DIYPage';
 import SettingsPage from './components/pages/SettingsPage';
 import BottomNav from './components/layout/BottomNav';
 import { useAutoGenerate } from './hooks/useAutoGenerate';
+import { registerServiceWorker } from './sw-register';
+import { addOnlineStatusListener } from './utils/cacheManager';
 import './styles/v6-tokens.css';
 import './v6.css';
 
@@ -86,6 +88,16 @@ const V6Content = () => {
   const [isRegenerating, setIsRegenerating] = React.useState(false);
 
   const { regenerateBlessingOnly, regenerateBackgroundOnly } = useAutoGenerate();
+
+  useEffect(() => {
+    registerServiceWorker();
+    
+    const cleanup = addOnlineStatusListener((isOnline) => {
+      console.log('網路狀態:', isOnline ? '上線' : '離線');
+    });
+    
+    return cleanup;
+  }, []);
 
   const updateSettings = React.useCallback((newSettings) => {
     const merged = { ...settings, ...newSettings };
@@ -199,6 +211,7 @@ const V6Content = () => {
             element={
               <CompletedPage 
                 imageData={generatedImage}
+                background={generatedData?.background || null}
                 isRegenerating={isRegenerating}
                 onRegenerate={handleRegenerate}
                 onChangeBackground={handleChangeBackground}

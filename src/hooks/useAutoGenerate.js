@@ -1,16 +1,19 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   getFestivalTheme,
   getBackdropsByTheme,
+  getPexelsBackgroundCandidates,
   getLiveBackgroundCandidates,
+  getUnsplashBackgroundCandidates,
   getBlessingsByLength,
   getRandomItem,
   DEFAULT_BLESSINGS,
 } from '../data/backgrounds';
 import { getSignatureById } from '../data/signatureStore';
+import { isOffline, getCacheSize, addOnlineStatusListener } from '../utils/cacheManager';
 
 const RECENT_HISTORY_KEY = 'gm-v6-recent-history-v1';
-const MAX_RECENT_HISTORY = 5;
+const MAX_RECENT_HISTORY = 12;
 const SOURCE_HEALTH_KEY = 'gm-v6-image-source-health-v1';
 const SOURCE_FAILURE_THRESHOLD = 3;
 const SOURCE_PENALTY_MS = 10 * 60 * 1000;
@@ -27,6 +30,21 @@ const WISDOM_FILE_LIST = [
 let wisdomFileBlessingsCache = null;
 let wisdomFileBlessingsPromise = null;
 
+const createEmptyBackground = (theme = 'general') => ({
+  id: `fallback-empty-${theme}`,
+  imageUrl: '',
+  fallbackUrls: [],
+  theme: theme === 'general' ? 'sunrise' : theme,
+  textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
+  preferredTextColor: 'light',
+});
+
+const getBackgroundHistoryKey = (background) => {
+  if (!background) return null;
+  if (typeof background === 'string') return background;
+  return background.backgroundKey || background.recentKey || background.id || background.backgroundId || null;
+};
+
 const loadRecentHistory = () => {
   try {
     const stored = localStorage.getItem(RECENT_HISTORY_KEY);
@@ -40,15 +58,25 @@ const saveRecentHistory = (history) => {
   localStorage.setItem(RECENT_HISTORY_KEY, JSON.stringify(history));
 };
 
-const addToRecentHistory = (backgroundId, blessingId) => {
+const addToRecentHistory = (background, blessingId) => {
   const history = loadRecentHistory();
-  const newEntry = { backgroundId, blessingId, timestamp: Date.now() };
+  const backgroundKey = getBackgroundHistoryKey(background);
+  const backgroundId = background?.id || background?.backgroundId || backgroundKey || 'unknown-background';
+  const newEntry = {
+    backgroundId,
+    backgroundKey,
+    blessingId,
+    timestamp: Date.now(),
+  };
   const newHistory = [newEntry, ...history].slice(0, MAX_RECENT_HISTORY);
   saveRecentHistory(newHistory);
 };
 
 const getRecentBackgroundIds = () => {
-  return loadRecentHistory().slice(0, 3).map(h => h.backgroundId);
+  return [...new Set(loadRecentHistory()
+    .slice(0, 8)
+    .map((historyItem) => historyItem.backgroundKey || historyItem.backgroundId)
+    .filter(Boolean))];
 };
 
 const getRecentBlessingIds = () => {
@@ -138,19 +166,29 @@ const saveSourceHealth = (health) => {
 };
 
 const getSourceFromUrl = (url) => {
+  if (url.includes('images.pexels.com')) return 'pexels-api';
   if (url.includes('source.unsplash.com/featured')) return 'unsplash-featured';
   if (url.includes('source.unsplash.com')) return 'unsplash-source';
+  if (url.includes('images.unsplash.com')) return 'unsplash-api';
   if (url.includes('picsum.photos')) return 'picsum';
   if (url.includes('loremflickr.com')) return 'loremflickr';
   return 'fallback-static';
 };
 
 const normalizeImageCandidates = (primaryUrl, fallbackUrls = [], imageCandidates = []) => {
-  if (imageCandidates.length > 0) return imageCandidates;
+  if (imageCandidates.length > 0) {
+    return imageCandidates
+      .filter((candidate) => candidate?.url)
+      .map((candidate) => ({
+        ...candidate,
+        source: candidate.source || getSourceFromUrl(candidate.url),
+        baseWeight: Number.isFinite(candidate.baseWeight) ? candidate.baseWeight : 1,
+      }));
+  }
 
   return [primaryUrl, ...fallbackUrls]
     .filter(Boolean)
-    .map((url) => ({ url, source: getSourceFromUrl(url) }));
+    .map((url) => ({ url, source: getSourceFromUrl(url), baseWeight: 1 }));
 };
 
 const getSourceWeight = (sourceHealth, source, now) => {
@@ -160,8 +198,14 @@ const getSourceWeight = (sourceHealth, source, now) => {
   return 1;
 };
 
+const getCandidateWeight = (candidate, sourceHealth, now) => {
+  const healthWeight = getSourceWeight(sourceHealth, candidate.source, now);
+  const baseWeight = Number.isFinite(candidate.baseWeight) ? candidate.baseWeight : 1;
+  return Math.max(0.01, healthWeight * baseWeight);
+};
+
 const pickWeightedIndex = (candidates, sourceHealth, now) => {
-  const weights = candidates.map(item => Math.max(0.01, getSourceWeight(sourceHealth, item.source, now)));
+  const weights = candidates.map((candidate) => getCandidateWeight(candidate, sourceHealth, now));
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
   let random = Math.random() * totalWeight;
 
@@ -186,6 +230,44 @@ const orderCandidatesByWeight = (candidates) => {
   }
 
   return ordered;
+};
+
+const getBackgroundWeight = (background, sourceHealth, now) => {
+  const candidates = normalizeImageCandidates(
+    background?.imageUrl,
+    background?.fallbackUrls,
+    background?.imageCandidates,
+  );
+
+  if (candidates.length === 0) return background?.isLive ? 0.25 : 1;
+
+  const weights = candidates.map((candidate) => getCandidateWeight(candidate, sourceHealth, now));
+  const bestWeight = Math.max(...weights);
+  const averageWeight = weights.reduce((sum, weight) => sum + weight, 0) / weights.length;
+  const liveBias = background?.isLive ? 0.85 : 1;
+  return Math.max(0.05, ((bestWeight * 0.65) + (averageWeight * 0.35)) * liveBias);
+};
+
+const pickBackground = (backgrounds, excludeKeys = []) => {
+  const excludeSet = new Set(excludeKeys.filter(Boolean));
+  const filtered = backgrounds.filter((background) => !excludeSet.has(getBackgroundHistoryKey(background)));
+  const pool = filtered.length > 0 ? filtered : backgrounds;
+  const sourceHealth = loadSourceHealth();
+  const now = Date.now();
+  const weights = pool.map((background) => getBackgroundWeight(background, sourceHealth, now));
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+
+  if (totalWeight <= 0) {
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  let random = Math.random() * totalWeight;
+  for (let i = 0; i < pool.length; i += 1) {
+    random -= weights[i];
+    if (random <= 0) return pool[i];
+  }
+
+  return pool[pool.length - 1];
 };
 
 const updateSourceHealth = (source, isSuccess) => {
@@ -235,12 +317,85 @@ const loadImage = async (primaryUrl, fallbackUrls = [], imageCandidates = []) =>
   return { success: false };
 };
 
+const listStaticBackgroundFallbacks = (background) => {
+  const preferredTheme = background?.theme || 'general';
+  const themedBackgrounds = getBackdropsByTheme(preferredTheme);
+  const genericBackgrounds = getBackdropsByTheme('general');
+  const seenIds = new Set();
+
+  return [...themedBackgrounds, ...genericBackgrounds].filter((candidate) => {
+    if (!candidate?.imageUrl) return false;
+    if (candidate.id === background?.id) return false;
+    if (seenIds.has(candidate.id)) return false;
+    seenIds.add(candidate.id);
+    return true;
+  });
+};
+
+const attachFallbackMetadata = (resolvedBackground, requestedBackground) => {
+  if (!resolvedBackground || !requestedBackground || resolvedBackground.id === requestedBackground.id) {
+    return resolvedBackground;
+  }
+
+  return {
+    ...resolvedBackground,
+    requestedBackgroundId: requestedBackground.id,
+    requestedBackgroundKey: getBackgroundHistoryKey(requestedBackground),
+    fallbackReason: 'image-load-failed',
+  };
+};
+
+const resolveBackgroundImage = async (background) => {
+  const requestedBackground = background;
+  const primaryResult = await loadImage(
+    background?.imageUrl,
+    background?.fallbackUrls,
+    background?.imageCandidates,
+  );
+
+  if (primaryResult.success) {
+    return {
+      background: requestedBackground,
+      imageLoadResult: primaryResult,
+      usedFallbackAsset: false,
+    };
+  }
+
+  const fallbackBackgrounds = listStaticBackgroundFallbacks(requestedBackground);
+  for (let i = 0; i < fallbackBackgrounds.length; i += 1) {
+    const fallbackBackground = fallbackBackgrounds[i];
+    const fallbackResult = await loadImage(
+      fallbackBackground.imageUrl,
+      fallbackBackground.fallbackUrls,
+      fallbackBackground.imageCandidates,
+    );
+
+    if (fallbackResult.success) {
+      return {
+        background: attachFallbackMetadata(fallbackBackground, requestedBackground),
+        imageLoadResult: fallbackResult,
+        usedFallbackAsset: true,
+      };
+    }
+  }
+
+  return {
+    background: requestedBackground,
+    imageLoadResult: { success: false },
+    usedFallbackAsset: true,
+  };
+};
+
 const createRequestSeed = () => Date.now() + Math.floor(Math.random() * 1000000);
 
-const getBackgroundPool = (theme, requestSeed) => {
+const getBackgroundPool = async (theme, requestSeed) => {
+  const pexelsBackgrounds = await getPexelsBackgroundCandidates(theme, { requestSeed });
+  const unsplashBackgrounds = pexelsBackgrounds.length > 0
+    ? []
+    : await getUnsplashBackgroundCandidates(theme, { requestSeed });
   const liveBackgrounds = getLiveBackgroundCandidates(theme, { perQuery: 3, requestSeed });
   const fallbackBackgrounds = getBackdropsByTheme(theme);
-  return [...liveBackgrounds, ...fallbackBackgrounds];
+  return [...pexelsBackgrounds, ...unsplashBackgrounds, ...liveBackgrounds, ...fallbackBackgrounds];
 };
 
 const loadDataImage = (src) =>
@@ -897,11 +1052,9 @@ const createComposedImage = async (background, blessing, settings) => {
   canvas.height = 1080;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-  const imageLoadResult = await loadImage(
-    background.imageUrl,
-    background.fallbackUrls,
-    background.imageCandidates,
-  );
+  const resolvedBackgroundResult = await resolveBackgroundImage(background);
+  const imageLoadResult = resolvedBackgroundResult.imageLoadResult;
+  const effectiveBackground = resolvedBackgroundResult.background || background;
 
   if (imageLoadResult.success) {
     ctx.drawImage(imageLoadResult.img, 0, 0, canvas.width, canvas.height);
@@ -923,14 +1076,20 @@ const createComposedImage = async (background, blessing, settings) => {
   }
 
   const backgroundDataUrl = canvas.toDataURL('image/jpeg', 0.95);
-  const textStyles = renderAutoTypography(ctx, canvas, background, blessing, settings, signatureAssetImage);
+  const textStyles = renderAutoTypography(ctx, canvas, effectiveBackground, blessing, settings, signatureAssetImage);
   const editorScene = {
     canvasSize: { width: canvas.width, height: canvas.height },
     backgroundDataUrl,
     textBlocks: textStyles.sceneBlocks,
     safeArea: textStyles.safeArea,
   };
-  return { canvas, textStyles, editorScene };
+  return {
+    canvas,
+    textStyles,
+    editorScene,
+    background: effectiveBackground,
+    usedFallbackAsset: resolvedBackgroundResult.usedFallbackAsset,
+  };
 };
 
 const renderSceneToCanvas = async (editorScene, options = {}) => {
@@ -1106,7 +1265,25 @@ const renderSceneToCanvas = async (editorScene, options = {}) => {
 export const useAutoGenerate = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
+  const [cacheReady, setCacheReady] = useState(false);
   const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const checkCacheStatus = async () => {
+      if (!isOffline() && await getCacheSize() > 0) {
+        setCacheReady(true);
+      }
+    };
+    checkCacheStatus();
+    
+    const cleanup = addOnlineStatusListener((isOnline) => {
+      if (isOnline && getCacheSize() > 0) {
+        setCacheReady(true);
+      }
+    });
+    
+    return cleanup;
+  }, []);
 
   const generate = useCallback(async (settings) => {
     setIsGenerating(true);
@@ -1120,7 +1297,7 @@ export const useAutoGenerate = () => {
       const theme = festival?.theme || 'general';
       const requestSeed = createRequestSeed();
 
-      const backgrounds = getBackgroundPool(theme, requestSeed);
+      const backgrounds = await getBackgroundPool(theme, requestSeed);
       const recentBackgroundIds = getRecentBackgroundIds();
       
       let background;
@@ -1128,15 +1305,9 @@ export const useAutoGenerate = () => {
       const availableBackgrounds = backgrounds.length > 0 ? backgrounds : [];
       
       if (availableBackgrounds.length > 0) {
-        background = getRandomItem(availableBackgrounds, recentBackgroundIds);
+        background = pickBackground(availableBackgrounds, recentBackgroundIds);
       } else {
-        background = {
-          id: 'fallback-001',
-          imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1080&q=80',
-          theme: 'sunrise',
-          textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-          preferredTextColor: 'light',
-        };
+        background = createEmptyBackground(theme);
       }
 
       const length = selectBlessingLength(background.textSafeArea);
@@ -1147,16 +1318,16 @@ export const useAutoGenerate = () => {
         recentBlessingIds
       );
 
-      const { canvas, textStyles, editorScene } = await createComposedImage(background, blessing, settings);
+      const { canvas, textStyles, editorScene, background: resolvedBackground } = await createComposedImage(background, blessing, settings);
 
-      addToRecentHistory(background.id, blessing.id);
+      addToRecentHistory(resolvedBackground, blessing.id);
 
       const imageData = canvas.toDataURL('image/jpeg', 0.9);
       canvasRef.current = canvas;
 
       const result = {
         imageData,
-        background,
+        background: resolvedBackground,
         blessing,
         settings: {
           textColor: textStyles.textColor,
@@ -1217,7 +1388,7 @@ export const useAutoGenerate = () => {
         editorScene = composed.editorScene;
       }
 
-      addToRecentHistory(background.id, blessing.id);
+      addToRecentHistory(background, blessing.id);
 
       const imageData = canvas.toDataURL('image/jpeg', 0.9);
       canvasRef.current = canvas;
@@ -1253,35 +1424,30 @@ export const useAutoGenerate = () => {
       const theme = festival?.theme || 'general';
       const requestSeed = createRequestSeed();
       
-      const backgrounds = getBackgroundPool(theme, requestSeed);
+      const backgrounds = await getBackgroundPool(theme, requestSeed);
       const recentBackgroundIds = getRecentBackgroundIds();
-      const excludeIds = [...recentBackgroundIds, currentData.background.id];
+      const excludeIds = [...recentBackgroundIds, getBackgroundHistoryKey(currentData.background)];
       
       let background;
       
       const availableBackgrounds = backgrounds.length > 0 ? backgrounds : [];
       
       if (availableBackgrounds.length > 0) {
-        const filteredBackgrounds = availableBackgrounds.filter(bg => !excludeIds.includes(bg.id));
+        const filteredBackgrounds = availableBackgrounds.filter((bg) => !excludeIds.includes(getBackgroundHistoryKey(bg)));
         if (filteredBackgrounds.length > 0) {
-          background = getRandomItem(filteredBackgrounds, []);
+          background = pickBackground(filteredBackgrounds, []);
         } else {
-          background = getRandomItem(availableBackgrounds, [currentData.background.id]);
+          background = pickBackground(availableBackgrounds, [getBackgroundHistoryKey(currentData.background)]);
         }
       } else {
-        background = {
-          id: 'fallback-001',
-          imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1080&q=80',
-          theme: 'sunrise',
-          textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-          preferredTextColor: 'light',
-        };
+        background = createEmptyBackground(theme);
       }
 
       const blessing = currentData.blessing;
       let canvas;
       let textStyles;
       let editorScene;
+      let resolvedBackground = background;
 
       if (currentData?.editorScene && Array.isArray(currentData.editorScene.textBlocks)) {
         const sceneSize = currentData.editorScene.canvasSize || { width: 1080, height: 1080 };
@@ -1290,11 +1456,9 @@ export const useAutoGenerate = () => {
         bgCanvas.height = sceneSize.height || 1080;
         const bgCtx = bgCanvas.getContext('2d');
 
-        const bgResult = await loadImage(
-          background.imageUrl,
-          background.fallbackUrls,
-          background.imageCandidates,
-        );
+        const bgResolution = await resolveBackgroundImage(background);
+        const bgResult = bgResolution.imageLoadResult;
+        resolvedBackground = bgResolution.background || background;
         if (bgResult.success) {
           bgCtx.drawImage(bgResult.img, 0, 0, bgCanvas.width, bgCanvas.height);
         } else {
@@ -1311,23 +1475,24 @@ export const useAutoGenerate = () => {
         textStyles = {
           textColor: currentData?.settings?.textColor || '#ffffff',
           strokeColor: currentData?.settings?.strokeColor || 'rgba(0,0,0,0.5)',
-          textColorType: currentData?.settings?.textColorType || background.preferredTextColor,
+          textColorType: currentData?.settings?.textColorType || resolvedBackground.preferredTextColor,
         };
       } else {
         const composed = await createComposedImage(background, blessing, settings);
         canvas = composed.canvas;
         textStyles = composed.textStyles;
         editorScene = composed.editorScene;
+        resolvedBackground = composed.background;
       }
 
-      addToRecentHistory(background.id, blessing.id);
+      addToRecentHistory(resolvedBackground, blessing.id);
 
       const imageData = canvas.toDataURL('image/jpeg', 0.9);
       canvasRef.current = canvas;
 
       return {
         imageData,
-        background,
+        background: resolvedBackground,
         blessing,
         settings: {
           textColor: textStyles.textColor,
@@ -1361,6 +1526,7 @@ export const useAutoGenerate = () => {
     regenerateBackgroundOnly,
     isGenerating,
     error,
+    cacheReady,
     canvasRef,
     downloadImage,
   };

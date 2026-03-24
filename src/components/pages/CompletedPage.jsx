@@ -1,10 +1,24 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import PrimaryButton from '../ui/PrimaryButton';
 import SecondaryButton from '../ui/SecondaryButton';
+import { isOffline } from '../../utils/cacheManager';
 
-const CompletedPage = ({ imageData, isRegenerating, onRegenerate, onChangeBackground, onDIY, onHome }) => {
+const CompletedPage = ({ imageData, background, isRegenerating, onRegenerate, onChangeBackground, onDIY, onHome }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [showOfflineHint, setShowOfflineHint] = useState(false);
+
+  useEffect(() => {
+    if (isOffline()) {
+      setShowOfflineHint(true);
+    }
+  }, []);
+
+  const sourceLabel = background?.sourceLabel || '';
+  const isPexelsBackground = sourceLabel.startsWith('pexels-');
+  const photographerName = background?.photographerName;
+  const photographerUrl = background?.photographerUrl;
+  const photoPageUrl = background?.photoPageUrl;
 
   const dataUrlToFile = useCallback(async (dataUrl, filename) => {
     const res = await fetch(dataUrl);
@@ -77,6 +91,40 @@ const CompletedPage = ({ imageData, isRegenerating, onRegenerate, onChangeBackgr
           className="gm6-completed-image" 
         />
       </div>
+
+      {showOfflineHint && (
+        <div className="gm6-offline-hint">
+          <span>🖼️ 使用快取的背景</span>
+          <small>圖片可能與今天不同</small>
+        </div>
+      )}
+
+      {isPexelsBackground && photographerName && (
+        <div className="gm6-attribution-card">
+          <div className="gm6-attribution-copy">
+            <span className="gm6-attribution-eyebrow">背景來源</span>
+            <p className="gm6-attribution-text">
+              背景照片由{' '}
+              {photographerUrl ? (
+                <a href={photographerUrl} target="_blank" rel="noreferrer" className="gm6-attribution-link">
+                  {photographerName}
+                </a>
+              ) : (
+                <span>{photographerName}</span>
+              )}
+              {' '}提供，來自 Pexels。
+            </p>
+          </div>
+          <a
+            href={photoPageUrl || 'https://www.pexels.com'}
+            target="_blank"
+            rel="noreferrer"
+            className="gm6-attribution-link gm6-attribution-link--cta"
+          >
+            查看原圖
+          </a>
+        </div>
+      )}
 
       <div className="gm6-completed-actions">
         <PrimaryButton onClick={handleShareToLine} disabled={isSharing}>
