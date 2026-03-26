@@ -2,8 +2,10 @@ import React, { useEffect, useRef } from 'react';
 import useAutoGenerate from '../../hooks/useAutoGenerate';
 
 const AutoGenPage = ({ settings, onGenerated }) => {
-  const { generate, error } = useAutoGenerate();
+  const { generate, error, loadingStage } = useAutoGenerate();
   const hasStartedRef = useRef(false);
+
+  console.log('AutoGenPage loadingStage:', loadingStage);
 
   useEffect(() => {
     if (hasStartedRef.current) return;
@@ -24,7 +26,7 @@ const AutoGenPage = ({ settings, onGenerated }) => {
   return (
     <div className="gm6-loading">
       <div className="gm6-loading-spinner" />
-      <p className="gm6-loading-text">正在幫您製作...</p>
+      <p className="gm6-loading-text">{loadingStage || '正在幫您製作...'}</p>
       {error && (
         <p style={{ color: '#ef4444', marginTop: '16px' }}>{error}</p>
       )}

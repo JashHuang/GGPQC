@@ -4,9 +4,10 @@ import SecondaryButton from '../ui/SecondaryButton';
 import Card from '../ui/Card';
 
 const ASPECT_RATIOS = [
-  { value: '1:1', label: '方形' },
-  { value: '9:16', label: '直式' },
-  { value: '4:3', label: '標準' },
+  { value: '1:1', label: '方形 (1:1)' },
+  { value: '3:4', label: '直式 (3:4)' },
+  { value: '9:16', label: '手機 (9:16)' },
+  { value: '4:3', label: '標準 (4:3)' },
 ];
 
 const HomePage = ({ settings, onAutoGenerate, onDIY, onSettings, onUpdateSettings }) => {
@@ -28,25 +29,23 @@ const HomePage = ({ settings, onAutoGenerate, onDIY, onSettings, onUpdateSetting
       <div className="gm6-preview-card">
         <div className="gm6-preview-placeholder">
           <div className="gm6-preview-placeholder-icon">☀️</div>
-          <p>今日早安圖</p>
+          <p>每天都美好～早安</p>
         </div>
       </div>
 
       <div className="gm6-ratio-selector">
         <div className="gm6-ratio-label">選擇尺寸</div>
-        <div className="gm6-ratio-options">
+        <select
+          className="gm6-ratio-select"
+          value={currentRatio}
+          onChange={(e) => onUpdateSettings({ aspectRatio: e.target.value })}
+        >
           {ASPECT_RATIOS.map((ratio) => (
-            <button
-              key={ratio.value}
-              type="button"
-              className={`gm6-ratio-btn ${currentRatio === ratio.value ? 'is-active' : ''}`}
-              onClick={() => onUpdateSettings({ aspectRatio: ratio.value })}
-            >
-              <span className="ratio-value">{ratio.value}</span>
-              <span className="ratio-name">{ratio.label}</span>
-            </button>
+            <option key={ratio.value} value={ratio.value}>
+              {ratio.label}
+            </option>
           ))}
-        </div>
+        </select>
       </div>
 
       <div className="gm6-actions">

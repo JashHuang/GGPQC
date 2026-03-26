@@ -14,6 +14,7 @@ import { isOffline, getCacheSize, addOnlineStatusListener } from '../utils/cache
 
 const ASPECT_DIMENSIONS = {
   '1:1': { width: 1080, height: 1080 },
+  '3:4': { width: 1080, height: 1440 },
   '9:16': { width: 1080, height: 1920 },
   '4:3': { width: 1080, height: 810 },
 };
@@ -415,6 +416,35 @@ const loadDataImage = (src) =>
     img.onerror = (error) => reject(error);
     img.src = src;
   });
+
+const drawImageCover = (ctx, img, targetWidth, targetHeight) => {
+  const imgRatio = img.naturalWidth / img.naturalHeight;
+  const targetRatio = targetWidth / targetHeight;
+
+  let drawWidth, drawHeight, sx, sy, sWidth, sHeight;
+
+  if (imgRatio > targetRatio) {
+    drawHeight = targetHeight;
+    drawWidth = targetHeight * imgRatio;
+    sx = (img.naturalWidth - (img.naturalHeight * targetRatio)) / 2;
+    sy = 0;
+    sWidth = img.naturalHeight * targetRatio;
+    sHeight = img.naturalHeight;
+  } else {
+    drawWidth = targetWidth;
+    drawHeight = targetWidth / imgRatio;
+    sx = 0;
+    sy = (img.naturalHeight - (img.naturalWidth / targetRatio)) / 2;
+    sWidth = img.naturalWidth;
+    sHeight = img.naturalWidth / targetRatio;
+  }
+
+  const dx = (targetWidth - drawWidth) / 2;
+  const dy = (targetHeight - drawHeight) / 2;
+
+  ctx.drawImage(img, sx, sy, sWidth, sHeight, dx, dy, drawWidth, drawHeight);
+};
+
 
 const BUILTIN_FONT_FAMILY_BY_NAME = {
   '思源黑體 (TC)': '"Noto Sans TC", sans-serif',
@@ -1064,7 +1094,7 @@ const createComposedImage = async (background, blessing, settings) => {
   const effectiveBackground = resolvedBackgroundResult.background || background;
 
   if (imageLoadResult.success) {
-    ctx.drawImage(imageLoadResult.img, 0, 0, canvas.width, canvas.height);
+    drawImageCover(ctx, imageLoadResult.img, canvas.width, canvas.height);
   } else {
     ctx.fillStyle = '#f8f2e8';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1112,7 +1142,7 @@ const renderSceneToCanvas = async (editorScene, options = {}) => {
     try {
       const bgImg = await loadDataImage(sceneBackground);
       if (bgImg) {
-        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+        drawImageCover(ctx, bgImg, canvas.width, canvas.height);
       }
     } catch {
       ctx.fillStyle = '#f8f2e8';
@@ -1273,6 +1303,7 @@ export const useAutoGenerate = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
   const [cacheReady, setCacheReady] = useState(false);
+  const [loadingStage, setLoadingStage] = useState('');
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -1295,9 +1326,12 @@ export const useAutoGenerate = () => {
   const generate = useCallback(async (settings) => {
     setIsGenerating(true);
     setError(null);
+    setLoadingStage('正在搜尋背景圖片...');
+    console.log('Loading stage:', '正在搜尋背景圖片...');
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 800));
 
       const today = new Date();
       const festival = getFestivalTheme(today);
@@ -1317,6 +1351,11 @@ export const useAutoGenerate = () => {
         background = createEmptyBackground(theme);
       }
 
+      setLoadingStage('正在載入背景圖片...');
+      console.log('Loading stage:', '正在載入背景圖片...');
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       const length = selectBlessingLength(background.textSafeArea);
       const blessings = await getMixedBlessingsByLength(length);
       const recentBlessingIds = getRecentBlessingIds();
@@ -1324,6 +1363,10 @@ export const useAutoGenerate = () => {
         blessings.length > 0 ? blessings : DEFAULT_BLESSINGS,
         recentBlessingIds
       );
+
+      setLoadingStage('正在生成早安圖...');
+      console.log('Loading stage:', '正在生成早安圖...');
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       const { canvas, textStyles, editorScene, background: resolvedBackground } = await createComposedImage(background, blessing, settings);
 
@@ -1350,12 +1393,14 @@ export const useAutoGenerate = () => {
       throw err;
     } finally {
       setIsGenerating(false);
+      setLoadingStage('');
     }
   }, []);
 
   const regenerateBlessingOnly = useCallback(async (currentData, settings) => {
     setIsGenerating(true);
     setError(null);
+    setLoadingStage('正在更換祝福語...');
 
     try {
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -1416,12 +1461,14 @@ export const useAutoGenerate = () => {
       throw err;
     } finally {
       setIsGenerating(false);
+      setLoadingStage('');
     }
   }, []);
 
   const regenerateBackgroundOnly = useCallback(async (currentData, settings) => {
     setIsGenerating(true);
     setError(null);
+    setLoadingStage('正在更換背景圖片...');
 
     try {
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -1467,7 +1514,7 @@ export const useAutoGenerate = () => {
         const bgResult = bgResolution.imageLoadResult;
         resolvedBackground = bgResolution.background || background;
         if (bgResult.success) {
-          bgCtx.drawImage(bgResult.img, 0, 0, bgCanvas.width, bgCanvas.height);
+          drawImageCover(bgCtx, bgResult.img, bgCanvas.width, bgCanvas.height);
         } else {
           bgCtx.fillStyle = '#f8f2e8';
           bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
@@ -1513,6 +1560,7 @@ export const useAutoGenerate = () => {
       throw err;
     } finally {
       setIsGenerating(false);
+      setLoadingStage('');
     }
   }, []);
 
@@ -1534,6 +1582,7 @@ export const useAutoGenerate = () => {
     isGenerating,
     error,
     cacheReady,
+    loadingStage,
     canvasRef,
     downloadImage,
   };

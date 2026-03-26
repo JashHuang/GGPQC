@@ -85,6 +85,12 @@ const CompletedPage = ({ imageData, background, isRegenerating, onRegenerate, on
   return (
     <div className="gm6-completed">
       <div className="gm6-completed-preview">
+        {isRegenerating && (
+          <div className="gm6-preview-loading">
+            <div className="gm6-loading-spinner" />
+            <p className="gm6-loading-text">正在生成新圖片...</p>
+          </div>
+        )}
         <img 
           src={imageData} 
           alt="早安圖" 

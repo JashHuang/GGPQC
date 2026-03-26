@@ -85,183 +85,7 @@ const buildQueryVariants = (theme) => {
   return variants;
 };
 
-const DEFAULT_BACKGROUNDS = [
-  // 日出/晨曦
-  {
-    id: 'bg-sunrise-001',
-    imageUrl: 'https://images.unsplash.com/photo-1507400492013-162706c8c05e?w=1080&q=80',
-    theme: 'sunrise',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  {
-    id: 'bg-sunrise-002',
-    imageUrl: 'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?w=1080&q=80',
-    theme: 'sunrise',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  {
-    id: 'bg-sunrise-003',
-    imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1080&q=80',
-    theme: 'sunrise',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  {
-    id: 'bg-sunrise-004',
-    imageUrl: 'https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=1080&q=80',
-    theme: 'sunrise',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  // 山景
-  {
-    id: 'bg-mountain-001',
-    imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1080&q=80',
-    theme: 'mountain',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  {
-    id: 'bg-mountain-002',
-    imageUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1080&q=80',
-    theme: 'mountain',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  {
-    id: 'bg-mountain-003',
-    imageUrl: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1080&q=80',
-    theme: 'mountain',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  {
-    id: 'bg-mountain-004',
-    imageUrl: 'https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=1080&q=80',
-    theme: 'mountain',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  {
-    id: 'bg-mountain-005',
-    imageUrl: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=1080&q=80',
-    theme: 'mountain',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  // 花卉
-  {
-    id: 'bg-flower-001',
-    imageUrl: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=1080&q=80',
-    theme: 'flower',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'dark',
-  },
-  {
-    id: 'bg-flower-002',
-    imageUrl: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=1080&q=80',
-    theme: 'flower',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'dark',
-  },
-  {
-    id: 'bg-flower-003',
-    imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1080&q=80',
-    theme: 'flower',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'dark',
-  },
-  {
-    id: 'bg-flower-004',
-    imageUrl: 'https://images.unsplash.com/photo-1462275646964-a0e3571f4f83?w=1080&q=80',
-    theme: 'flower',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'dark',
-  },
-  // 節慶
-  {
-    id: 'bg-festival-001',
-    imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1080&q=80',
-    theme: 'festival',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  {
-    id: 'bg-festival-002',
-    imageUrl: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1080&q=80',
-    theme: 'festival',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  {
-    id: 'bg-festival-003',
-    imageUrl: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?w=1080&q=80',
-    theme: 'festival',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  // 天空/雲景
-  {
-    id: 'bg-sky-001',
-    imageUrl: 'https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=1080&q=80',
-    theme: 'sunrise',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  {
-    id: 'bg-sky-002',
-    imageUrl: 'https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=1080&q=80',
-    theme: 'sunrise',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  // 自然/風景
-  {
-    id: 'bg-nature-001',
-    imageUrl: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1080&q=80',
-    theme: 'sunrise',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  {
-    id: 'bg-nature-002',
-    imageUrl: 'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=1080&q=80',
-    theme: 'sunrise',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  {
-    id: 'bg-nature-003',
-    imageUrl: 'https://images.unsplash.com/photo-1426604966848-d7adac402bff?w=1080&q=80',
-    theme: 'mountain',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  {
-    id: 'bg-nature-004',
-    imageUrl: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1080&q=80',
-    theme: 'mountain',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  // 日落
-  {
-    id: 'bg-sunset-001',
-    imageUrl: 'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1080&q=80',
-    theme: 'sunrise',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-  {
-    id: 'bg-sunset-002',
-    imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1080&q=80',
-    theme: 'sunrise',
-    textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
-    preferredTextColor: 'light',
-  },
-];
+const DEFAULT_BACKGROUNDS = [];
 
 export const getBackdropsByTheme = (theme) => {
   if (theme === 'general') {
@@ -330,18 +154,85 @@ const DEFAULT_BLESSINGS = [
 export { DEFAULT_BLESSINGS };
 
 export const getPexelsBackgroundCandidates = async (theme, options = {}) => {
+  const { perQuery = 3, requestSeed } = options;
   const themeQueries = {
-    sunrise: 'sunrise+morning',
-    flower: 'flower+bloom',
-    mountain: 'mountain+landscape',
-    festival: 'celebration+decoration',
-    general: 'nature+beautiful',
+    sunrise: 'sunrise,morning',
+    flower: 'flower,bloom',
+    mountain: 'mountain,landscape',
+    festival: 'celebration,decoration',
+    general: 'nature,beautiful',
   };
   const query = themeQueries[theme] || themeQueries.general;
-  return [];
+  const baseSeed = normalizeSeed(requestSeed);
+  const candidates = [];
+
+  const apiKey = import.meta.env.VITE_PEXELS_API_KEY;
+
+  if (apiKey) {
+    try {
+      const response = await fetch(
+        `https://api.pexels.com/v1/search?query=${query}&per_page=${perQuery}&orientation=all`,
+        {
+          headers: {
+            Authorization: apiKey,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const photos = data.photos || [];
+
+        for (let i = 0; i < Math.min(photos.length, perQuery); i++) {
+          const photo = photos[i];
+          const imageUrl = photo.src?.large2x || photo.src?.large || photo.src?.original;
+          
+          if (imageUrl) {
+            const sig = baseSeed + i;
+            candidates.push({
+              id: `pexels-${theme}-${sig}`,
+              imageUrl,
+              fallbackUrls: [
+                photo.src?.large,
+                photo.src?.medium,
+              ].filter(Boolean),
+              imageCandidates: [
+                { source: 'pexels-api', url: imageUrl, baseWeight: 1.2 },
+                ...(photo.src?.large ? [{ source: 'pexels-api', url: photo.src.large, baseWeight: 1 }] : []),
+              ],
+              theme,
+              textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
+              preferredTextColor: theme === 'flower' ? 'dark' : 'light',
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Pexels API 請求失敗，使用備選方案:', error);
+    }
+  }
+
+  if (candidates.length === 0) {
+    for (let i = 0; i < perQuery; i++) {
+      const sig = baseSeed + i;
+      const url = `https://source.pexels.com/${query}?sig=${sig}`;
+      candidates.push({
+        id: `pexels-${theme}-${sig}`,
+        imageUrl: url,
+        fallbackUrls: [],
+        imageCandidates: [{ source: 'pexels-source', url, baseWeight: 1 }],
+        theme,
+        textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
+        preferredTextColor: theme === 'flower' ? 'dark' : 'light',
+      });
+    }
+  }
+
+  return candidates;
 };
 
 export const getUnsplashBackgroundCandidates = async (theme, options = {}) => {
+  const { perQuery = 3, requestSeed } = options;
   const themeQueries = {
     sunrise: 'sunrise',
     flower: 'flowers',
@@ -350,5 +241,22 @@ export const getUnsplashBackgroundCandidates = async (theme, options = {}) => {
     general: 'nature',
   };
   const query = themeQueries[theme] || themeQueries.general;
-  return [];
+  const baseSeed = normalizeSeed(requestSeed);
+  const candidates = [];
+
+  for (let i = 0; i < perQuery; i++) {
+    const sig = baseSeed + i;
+    const url = `https://source.unsplash.com/1080x1080/?${query}&sig=${sig}`;
+    candidates.push({
+      id: `unsplash-${theme}-${sig}`,
+      imageUrl: url,
+      fallbackUrls: [],
+      imageCandidates: [{ source: 'unsplash-source', url, baseWeight: 1 }],
+      theme,
+      textSafeArea: { x: 0.1, y: 0.15, width: 0.8, height: 0.7 },
+      preferredTextColor: theme === 'flower' ? 'dark' : 'light',
+    });
+  }
+
+  return candidates;
 };
