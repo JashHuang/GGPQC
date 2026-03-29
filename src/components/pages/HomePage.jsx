@@ -29,7 +29,7 @@ const HomePage = ({ settings, onAutoGenerate, onDIY, onSettings, onUpdateSetting
       <div className="gm6-preview-card">
         <div className="gm6-preview-placeholder">
           <div className="gm6-preview-placeholder-icon">☀️</div>
-          <p>每天都美好～早安</p>
+          <p>每天都美好，早安</p>
         </div>
       </div>
 

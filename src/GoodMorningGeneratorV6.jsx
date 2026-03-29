@@ -181,7 +181,7 @@ const V6Content = () => {
   }, [generatedImage, generatedData, navigate]);
 
   const hideBottomNav = ['/auto-generate', '/completed', '/diy'].includes(location.pathname);
-  const showBackButton = location.pathname === '/completed';
+  const showBackButton = ['/completed', '/diy'].includes(location.pathname);
 
   return (
     <div className="gm6-page">
@@ -246,7 +246,7 @@ const V6Content = () => {
         {showBackButton && (
           <button 
             className="gm6-back-btn"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/')}
           >
             ← 返回
           </button>
