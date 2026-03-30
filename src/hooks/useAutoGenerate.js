@@ -455,6 +455,12 @@ const BUILTIN_FONT_FAMILY_BY_NAME = {
   '至莽行書': '"Zhi Mang Xing", cursive',
   '小薇 LOGO 體': '"ZCOOL XiaoWei", sans-serif',
   '青刻黃油體': '"ZCOOL QingKe HuangYou", sans-serif',
+  '隨峰體': '"The Peak Font 隨峰體 Beta", sans-serif',
+  'SanariFont': '"SanariFont", sans-serif',
+  'チョーク体': '"チョーク体", sans-serif',
+  'Yuji Boku': '"Yuji Boku", serif',
+  'YOzFontM90': '"YOzFontM90", sans-serif',
+  'MasaFont': '"MasaFont", sans-serif',
   '系統預設黑體': 'sans-serif',
   '系統預設明體': 'serif',
 };

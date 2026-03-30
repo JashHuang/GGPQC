@@ -16,6 +16,12 @@ const BUILTIN_FONTS = [
   { name: '至莽行書', family: '"Zhi Mang Xing", cursive' },
   { name: '小薇 LOGO 體', family: '"ZCOOL XiaoWei", sans-serif' },
   { name: '青刻黃油體', family: '"ZCOOL QingKe HuangYou", sans-serif' },
+  { name: '隨峰體', family: '"The Peak Font 隨峰體 Beta", sans-serif' },
+  { name: 'SanariFont', family: '"SanariFont", sans-serif' },
+  { name: 'チョーク体', family: '"チョーク体", sans-serif' },
+  { name: 'Yuji Boku', family: '"Yuji Boku", serif' },
+  { name: 'YOzFontM90', family: '"YOzFontM90", sans-serif' },
+  { name: 'MasaFont', family: '"MasaFont", sans-serif' },
   { name: '系統預設黑體', family: 'sans-serif' },
   { name: '系統預設明體', family: 'serif' },
 ];
@@ -43,6 +49,35 @@ const DEFAULT_USER_STYLE_SETTINGS = {
   wisdomStrokeColor: '#25526b',
   greetingWeight: 400,
   wisdomWeight: 400,
+};
+
+const getPrimaryFontFamily = (family) => {
+  if (!family) return null;
+  const first = family.split(',')[0]?.trim();
+  return first || null;
+};
+
+const normalizeStoredFontName = (fontValue) => {
+  if (!fontValue) return '';
+  const normalized = String(fontValue).trim();
+  const builtinByName = BUILTIN_FONTS.find((font) => font.name === normalized);
+  if (builtinByName) return builtinByName.name;
+
+  const builtinByFamily = BUILTIN_FONTS.find((font) => font.family === normalized);
+  if (builtinByFamily) return builtinByFamily.name;
+
+  return normalized;
+};
+
+const resolveCanvasFontFamily = (fontValue) => {
+  if (!fontValue) return BUILTIN_FONTS[0].family;
+
+  const normalizedName = normalizeStoredFontName(fontValue);
+  const builtinFont = BUILTIN_FONTS.find((font) => font.name === normalizedName);
+  if (builtinFont) return builtinFont.family;
+
+  if (normalizedName.includes('"') || normalizedName.includes(',')) return normalizedName;
+  return `"${normalizedName}"`;
 };
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
@@ -312,14 +347,14 @@ const GoodMorningGeneratorV5 = () => {
       } = e.detail;
 
       if (rememberedStyle?.greeting) {
-        if (rememberedStyle.greeting.font) setGreetingFont(rememberedStyle.greeting.font);
+        if (rememberedStyle.greeting.font) setGreetingFont(normalizeStoredFontName(rememberedStyle.greeting.font));
         setGreetingFillColor(rememberedStyle.greeting.fillColor || DEFAULT_USER_STYLE_SETTINGS.greetingFillColor);
         setGreetingStrokeColor(rememberedStyle.greeting.strokeColor || DEFAULT_USER_STYLE_SETTINGS.greetingStrokeColor);
         setGreetingHasStroke(rememberedStyle.greeting.hasStroke !== false);
       }
 
       if (rememberedStyle?.wisdom) {
-        if (rememberedStyle.wisdom.font) setWisdomFont(rememberedStyle.wisdom.font);
+        if (rememberedStyle.wisdom.font) setWisdomFont(normalizeStoredFontName(rememberedStyle.wisdom.font));
         setWisdomFillColor(rememberedStyle.wisdom.fillColor || DEFAULT_USER_STYLE_SETTINGS.wisdomFillColor);
         setWisdomStrokeColor(rememberedStyle.wisdom.strokeColor || DEFAULT_USER_STYLE_SETTINGS.wisdomStrokeColor);
         setWisdomHasStroke(rememberedStyle.wisdom.hasStroke !== false);
@@ -643,12 +678,47 @@ const GoodMorningGeneratorV5 = () => {
 
   // Redraw handling
   useEffect(() => {
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(() => {
-        setFontsLoaded(true);
-        setHistoryVersion(v => v + 1);
-      });
-    } else { setTimeout(() => setFontsLoaded(true), 1500); }
+    let cancelled = false;
+
+    const preloadBuiltinFonts = async () => {
+      if (!(document.fonts && document.fonts.ready && document.fonts.load)) {
+        setTimeout(() => {
+          if (!cancelled) setFontsLoaded(true);
+        }, 1500);
+        return;
+      }
+
+      try {
+        await document.fonts.ready;
+
+        await Promise.all(
+          BUILTIN_FONTS.map(async ({ family }) => {
+            const primaryFamily = getPrimaryFontFamily(family);
+            if (!primaryFamily || primaryFamily === 'sans-serif' || primaryFamily === 'serif' || primaryFamily === 'cursive') {
+              return;
+            }
+
+            try {
+              await document.fonts.load(`400 32px ${primaryFamily}`, '早安 Good Morning');
+              await document.fonts.load(`700 32px ${primaryFamily}`, '早安 Good Morning');
+            } catch (error) {
+              console.error(`預載內建字型失敗: ${primaryFamily}`, error);
+            }
+          })
+        );
+      } finally {
+        if (!cancelled) {
+          setFontsLoaded(true);
+          setHistoryVersion(v => v + 1);
+        }
+      }
+    };
+
+    preloadBuiltinFonts();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const generateRandomQuote = useCallback(() => {
@@ -889,8 +959,7 @@ const GoodMorningGeneratorV5 = () => {
       const isSel = selectionSet.has(b.id);
       const isPri = primaryId === b.id;
       const isMobileUi = window.innerWidth <= 1120;
-      const fDef = BUILTIN_FONTS.find(f => f.name === b.font);
-      const font = fDef?.family || `"${b.font}"`;
+      const font = resolveCanvasFontFamily(b.font);
       ctx.save();
       if (isSel) {
         const handleSize = isMobileUi ? 16 : 10;
@@ -1264,7 +1333,7 @@ const GoodMorningGeneratorV5 = () => {
               <div className="gm5-context-bar animate-in fade-in zoom-in-95">
                 {textBlocks.find(b => b.id === primaryId)?.type !== 'signature' ? (
                   <>
-                    <select className="gm5-input !min-h-8 !h-8 !w-36 !py-0 text-sm font-semibold border-none shadow-none" value={textBlocks.find(b => b.id === primaryId)?.font || ''} onChange={e => updateBlockById(primaryId, { font: e.target.value })}>{allFonts.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}</select>
+                    <select className="gm5-input !min-h-8 !h-8 !w-36 !py-0 text-sm font-semibold border-none shadow-none" value={normalizeStoredFontName(textBlocks.find(b => b.id === primaryId)?.font)} onChange={e => updateBlockById(primaryId, { font: e.target.value })}>{allFonts.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}</select>
                     <div className="w-[1px] h-5 bg-gray-200" />
                     <select className="gm5-input !min-h-8 !h-8 !w-20 !py-0 text-sm border-none shadow-none" value={textBlocks.find(b => b.id === primaryId)?.fontWeight || 400} onChange={e => { const val = parseInt(e.target.value, 10); updateBlockById(primaryId, { fontWeight: val }); }}>
                       {[100, 200, 300, 400, 500, 600, 700, 800, 900].map(w => <option key={w} value={w}>{w}</option>)}

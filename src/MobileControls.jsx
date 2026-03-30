@@ -14,6 +14,14 @@ const toHexColor = (value, fallback = '#000000') => {
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 };
 
+const normalizeStoredFontName = (fontValue, allFonts) => {
+  if (!fontValue) return '';
+  const normalized = String(fontValue).trim();
+  const matched = allFonts.find((font) => font.name === normalized || font.family === normalized);
+  if (matched) return matched.name;
+  return normalized;
+};
+
 const MobileControls = ({
   activeTab,
   setActiveTab,
@@ -96,7 +104,7 @@ const MobileControls = ({
                   <label className="gm5-mobile-tool-label">選擇字型</label>
                   <select
                     className="gm5-input gm5-mobile-tool-select w-full"
-                    value={block.font || ''}
+                    value={normalizeStoredFontName(block.font, allFonts)}
                     onChange={e => updateBlockById(primaryId, { font: e.target.value })}
                   >
                     {allFonts.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
