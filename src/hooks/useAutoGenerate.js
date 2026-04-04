@@ -635,9 +635,14 @@ const drawLines = (ctx, lines, x, startY, lineHeight, styles) => {
   lines.forEach((line, index) => {
     const y = startY + (index * lineHeight);
     if (strokeColor && strokeWidth > 0) {
+      ctx.save();
+      ctx.shadowColor = strokeColor;
+      ctx.shadowBlur = strokeWidth * 1.5;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
       ctx.strokeStyle = strokeColor;
-      ctx.lineWidth = strokeWidth;
       ctx.strokeText(line, x, y);
+      ctx.restore();
     }
     ctx.fillStyle = fillColor;
     ctx.fillText(line, x, y);
@@ -703,17 +708,24 @@ const drawLegacyHorizontalText = (ctx, block, fontSize) => {
 
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
+  ctx.miterLimit = 2;
   ctx.imageSmoothingQuality = 'high';
-  ctx.lineWidth = Math.max(2, fontSize * 0.05);
+  ctx.lineWidth = Math.max(1, fontSize * 0.025);
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
   lines.forEach((line, index) => {
-    const x = Math.round(block.x + padding);
-    const y = Math.round(block.y + padding + index * fontSize * 1.28);
+    const x = block.x + padding;
+    const y = block.y + padding + index * fontSize * 1.28;
     if (block.hasStroke !== false) {
+      ctx.save();
+      ctx.shadowColor = block.strokeColor || '#000000';
+      ctx.shadowBlur = ctx.lineWidth * 1.5;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
       ctx.strokeStyle = block.strokeColor || '#000000';
       ctx.strokeText(line, x, y);
+      ctx.restore();
     }
     ctx.fillStyle = block.fillColor || '#ffffff';
     ctx.fillText(line, x, y);
@@ -729,8 +741,9 @@ const drawLegacyVerticalText = (ctx, block, fontSize) => {
 
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
+  ctx.miterLimit = 2;
   ctx.imageSmoothingQuality = 'high';
-  ctx.lineWidth = Math.max(2, fontSize * 0.05);
+  ctx.lineWidth = Math.max(1, fontSize * 0.025);
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
@@ -741,15 +754,18 @@ const drawLegacyVerticalText = (ctx, block, fontSize) => {
     }
     if (x < block.x + padding) return;
 
-    const drawX = Math.round(x);
-    const drawY = Math.round(y);
-
     if (block.hasStroke !== false) {
+      ctx.save();
+      ctx.shadowColor = block.strokeColor || '#000000';
+      ctx.shadowBlur = ctx.lineWidth * 1.5;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
       ctx.strokeStyle = block.strokeColor || '#000000';
-      ctx.strokeText(char, drawX, drawY);
+      ctx.strokeText(char, x, y);
+      ctx.restore();
     }
     ctx.fillStyle = block.fillColor || '#ffffff';
-    ctx.fillText(char, drawX, drawY);
+    ctx.fillText(char, x, y);
     y += fontSize + spacing;
   });
 };
@@ -790,12 +806,14 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
     fillColor: rememberedStyle.greeting?.fillColor || palette.greeting,
     strokeColor: rememberedStyle.greeting?.strokeColor || palette.stroke,
     hasStroke: rememberedStyle.greeting?.hasStroke !== false,
+    fontWeight: rememberedStyle.greeting?.fontWeight || 800,
   };
   const wisdomStyle = {
     font: rememberedStyle.wisdom?.font || '思源宋體 (TC)',
     fillColor: rememberedStyle.wisdom?.fillColor || palette.body,
     strokeColor: rememberedStyle.wisdom?.strokeColor || palette.stroke,
     hasStroke: rememberedStyle.wisdom?.hasStroke !== false,
+    fontWeight: rememberedStyle.wisdom?.fontWeight || 700,
   };
   const greetingText = '早安';
   const preset = TYPOGRAPHY_PRESETS[settings.typographyMode] || TYPOGRAPHY_PRESETS.balanced;
@@ -911,7 +929,7 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
     {
       fillColor: greetingStyle.fillColor,
       strokeColor: greetingStyle.hasStroke ? greetingStyle.strokeColor : null,
-      strokeWidth: Math.max(2.5, greetingFit.size * 0.08),
+      strokeWidth: Math.max(1.5, greetingFit.size * 0.035),
     },
   );
 
@@ -927,7 +945,7 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
     {
       fillColor: wisdomStyle.fillColor,
       strokeColor: wisdomStyle.hasStroke ? wisdomStyle.strokeColor : null,
-      strokeWidth: Math.max(1.5, wisdomBest.fit.size * 0.06),
+      strokeWidth: Math.max(1, wisdomBest.fit.size * 0.03),
     },
   );
 
@@ -1049,7 +1067,7 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
       font: '思源黑體 (TC)',
       fillColor: greetingStyle.fillColor,
       strokeColor: greetingStyle.strokeColor,
-      fontWeight: 800,
+      fontWeight: greetingStyle.fontWeight,
       hasStroke: greetingStyle.hasStroke,
       textAlign: 'center',
       fontSize: greetingFit.size,
@@ -1069,7 +1087,7 @@ const renderAutoTypography = (ctx, canvas, background, blessing, settings, signa
       font: wisdomStyle.font,
       fillColor: wisdomStyle.fillColor,
       strokeColor: wisdomStyle.strokeColor,
-      fontWeight: 700,
+      fontWeight: wisdomStyle.fontWeight,
       hasStroke: wisdomStyle.hasStroke,
       textAlign: 'center',
       fontSize: wisdomBest.fit.size,
@@ -1283,7 +1301,7 @@ const renderSceneToCanvas = async (editorScene, options = {}) => {
       {
         fillColor: block.fillColor || '#ffffff',
         strokeColor: (block.hasStroke === false) ? null : (block.strokeColor || 'rgba(0,0,0,0.5)'),
-        strokeWidth: Math.max(1, drawLinesData.size * 0.05),
+        strokeWidth: Math.max(1, drawLinesData.size * 0.025),
       },
     );
 

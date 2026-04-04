@@ -344,13 +344,31 @@ const GoodMorningGeneratorV5 = () => {
         textColorType,
         editorScene,
         rememberedStyle,
+        typographyMode,
       } = e.detail;
+
+      const TYPOGRAPHY_PRESETS = {
+        large: {
+          greeting: { widthRatio: 0.7, heightRatio: 0.24 },
+          wisdom: { yRatio: 0.35, heightRatio: 0.4 },
+        },
+        balanced: {
+          greeting: { widthRatio: 0.6, heightRatio: 0.22 },
+          wisdom: { yRatio: 0.35, heightRatio: 0.4 },
+        },
+        compact: {
+          greeting: { widthRatio: 0.56, heightRatio: 0.2 },
+          wisdom: { yRatio: 0.35, heightRatio: 0.4 },
+        },
+      };
+      const preset = TYPOGRAPHY_PRESETS[typographyMode] || TYPOGRAPHY_PRESETS.balanced;
 
       if (rememberedStyle?.greeting) {
         if (rememberedStyle.greeting.font) setGreetingFont(normalizeStoredFontName(rememberedStyle.greeting.font));
         setGreetingFillColor(rememberedStyle.greeting.fillColor || DEFAULT_USER_STYLE_SETTINGS.greetingFillColor);
         setGreetingStrokeColor(rememberedStyle.greeting.strokeColor || DEFAULT_USER_STYLE_SETTINGS.greetingStrokeColor);
         setGreetingHasStroke(rememberedStyle.greeting.hasStroke !== false);
+        if (rememberedStyle.greeting.fontWeight) setGreetingWeight(rememberedStyle.greeting.fontWeight);
       }
 
       if (rememberedStyle?.wisdom) {
@@ -358,6 +376,7 @@ const GoodMorningGeneratorV5 = () => {
         setWisdomFillColor(rememberedStyle.wisdom.fillColor || DEFAULT_USER_STYLE_SETTINGS.wisdomFillColor);
         setWisdomStrokeColor(rememberedStyle.wisdom.strokeColor || DEFAULT_USER_STYLE_SETTINGS.wisdomStrokeColor);
         setWisdomHasStroke(rememberedStyle.wisdom.hasStroke !== false);
+        if (rememberedStyle.wisdom.fontWeight) setWisdomWeight(rememberedStyle.wisdom.fontWeight);
       }
 
       if (rememberedStyle?.signature) {
@@ -380,14 +399,14 @@ const GoodMorningGeneratorV5 = () => {
         visible: true,
         locked: false,
         text: '早安',
-        x: canvasWidth * 0.1,
-        y: canvasHeight * 0.15,
-        width: canvasWidth * 0.8,
-        height: canvasHeight * 0.15,
+        x: canvasWidth * safeArea.x + ((canvasWidth * safeArea.width * (1 - preset.greeting.widthRatio)) / 2),
+        y: canvasHeight * safeArea.y + (canvasHeight * safeArea.height * 0.02),
+        width: canvasWidth * safeArea.width * preset.greeting.widthRatio,
+        height: canvasHeight * safeArea.height * preset.greeting.heightRatio,
         font: rememberedStyle?.greeting?.font || greetingFont,
         fillColor: rememberedStyle?.greeting?.fillColor || fillColor,
         strokeColor: rememberedStyle?.greeting?.strokeColor || strokeColor,
-        fontWeight: 700,
+        fontWeight: rememberedStyle?.greeting?.fontWeight || 700,
         hasStroke: rememberedStyle?.greeting?.hasStroke !== false,
       };
 
@@ -400,13 +419,13 @@ const GoodMorningGeneratorV5 = () => {
         locked: false,
         text: wisdomText,
         x: canvasWidth * safeArea.x,
-        y: canvasHeight * 0.35,
+        y: canvasHeight * preset.wisdom.yRatio,
         width: canvasWidth * safeArea.width,
-        height: canvasHeight * 0.4,
+        height: canvasHeight * preset.wisdom.heightRatio,
         font: rememberedStyle?.wisdom?.font || wisdomFont,
         fillColor: rememberedStyle?.wisdom?.fillColor || fillColor,
         strokeColor: rememberedStyle?.wisdom?.strokeColor || strokeColor,
-        fontWeight: 400,
+        fontWeight: rememberedStyle?.wisdom?.fontWeight || 400,
         hasStroke: rememberedStyle?.wisdom?.hasStroke !== false,
       };
 
@@ -894,17 +913,24 @@ const GoodMorningGeneratorV5 = () => {
 
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
+    ctx.miterLimit = 2;
     ctx.imageSmoothingQuality = 'high';
-    const sw = Math.max(2, fontSize * 0.05);
+    const sw = Math.max(1, fontSize * 0.025);
     ctx.lineWidth = sw;
 
     lines.forEach((l, i) => {
-      const x = Math.round(b.x + p);
-      const y = Math.round(b.y + p + i * fontSize * 1.28);
+      const x = b.x + p;
+      const y = b.y + p + i * fontSize * 1.28;
 
       if (b.hasStroke !== false) {
+        ctx.save();
+        ctx.shadowColor = b.strokeColor;
+        ctx.shadowBlur = sw * 1.5;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
         ctx.strokeStyle = b.strokeColor;
         ctx.strokeText(l, x, y);
+        ctx.restore();
       }
 
       ctx.fillStyle = b.fillColor;
@@ -920,24 +946,28 @@ const GoodMorningGeneratorV5 = () => {
 
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
+    ctx.miterLimit = 2;
     ctx.imageSmoothingQuality = 'high';
-    const sw = Math.max(2, fontSize * 0.05);
+    const sw = Math.max(1, fontSize * 0.025);
     ctx.lineWidth = sw;
 
     (b.text || '').split('').forEach(char => {
       if (y + fontSize > b.y + b.height - p) { y = b.y + p; x -= cw + sp; }
       if (x < b.x + p) return;
 
-      const rx = Math.round(x);
-      const ry = Math.round(y);
-
       if (b.hasStroke !== false) {
+        ctx.save();
+        ctx.shadowColor = b.strokeColor;
+        ctx.shadowBlur = sw * 1.5;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
         ctx.strokeStyle = b.strokeColor;
-        ctx.strokeText(char, rx, ry);
+        ctx.strokeText(char, x, y);
+        ctx.restore();
       }
 
       ctx.fillStyle = b.fillColor;
-      ctx.fillText(char, rx, ry);
+      ctx.fillText(char, x, y);
 
       y += fontSize + sp;
     });

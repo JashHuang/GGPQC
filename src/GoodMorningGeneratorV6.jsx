@@ -26,6 +26,8 @@ const getDefaultSettings = () => ({
     greeting: null,
     wisdom: null,
     signature: null,
+    signatureText: null,
+    canvasSize: null,
   },
 });
 
@@ -50,7 +52,8 @@ const extractEditorStylePrefs = (editorScene) => {
   const sceneSize = editorScene?.canvasSize || { width: 1080, height: 1080 };
   const greeting = blocks.find((b) => b.type === 'greeting');
   const wisdom = blocks.find((b) => b.type === 'wisdom');
-  const signature = blocks.find((b) => b.type === 'signature' && b.data);
+  const signatureImage = blocks.find((b) => b.type === 'signature' && b.data);
+  const signatureText = blocks.find((b) => b.type === 'signature-text');
 
   const next = {
     greeting: greeting ? {
@@ -58,22 +61,42 @@ const extractEditorStylePrefs = (editorScene) => {
       fillColor: greeting.fillColor || '#ffffff',
       strokeColor: greeting.strokeColor || '#000000',
       hasStroke: greeting.hasStroke !== false,
+      fontWeight: greeting.fontWeight || 400,
     } : null,
     wisdom: wisdom ? {
       font: wisdom.font || null,
       fillColor: wisdom.fillColor || '#ffffff',
       strokeColor: wisdom.strokeColor || '#000000',
       hasStroke: wisdom.hasStroke !== false,
+      fontWeight: wisdom.fontWeight || 400,
     } : null,
     signature: null,
+    signatureText: null,
+    canvasSize: null,
   };
 
-  if (signature && isFiniteNumber(signature.x) && isFiniteNumber(signature.y) && sceneSize.width > 0 && sceneSize.height > 0) {
+  if (signatureImage && isFiniteNumber(signatureImage.x) && isFiniteNumber(signatureImage.y) && sceneSize.width > 0 && sceneSize.height > 0) {
     next.signature = {
-      xRatio: signature.x / sceneSize.width,
-      yRatio: signature.y / sceneSize.height,
-      widthRatio: signature.width / sceneSize.width,
-      heightRatio: signature.height / sceneSize.height,
+      xRatio: signatureImage.x / sceneSize.width,
+      yRatio: signatureImage.y / sceneSize.height,
+      widthRatio: signatureImage.width / sceneSize.width,
+      heightRatio: signatureImage.height / sceneSize.height,
+    };
+  }
+
+  if (signatureText && isFiniteNumber(signatureText.x) && isFiniteNumber(signatureText.y) && sceneSize.width > 0 && sceneSize.height > 0) {
+    next.signatureText = {
+      xRatio: signatureText.x / sceneSize.width,
+      yRatio: signatureText.y / sceneSize.height,
+      widthRatio: signatureText.width / sceneSize.width,
+      heightRatio: signatureText.height / sceneSize.height,
+    };
+  }
+
+  if (isFiniteNumber(sceneSize.width) && isFiniteNumber(sceneSize.height)) {
+    next.canvasSize = {
+      width: sceneSize.width,
+      height: sceneSize.height,
     };
   }
 
@@ -156,6 +179,8 @@ const V6Content = () => {
         greeting: extractedPrefs.greeting || settings.editorStylePrefs?.greeting || null,
         wisdom: extractedPrefs.wisdom || settings.editorStylePrefs?.wisdom || null,
         signature: extractedPrefs.signature || settings.editorStylePrefs?.signature || null,
+        signatureText: extractedPrefs.signatureText || settings.editorStylePrefs?.signatureText || null,
+        canvasSize: extractedPrefs.canvasSize || settings.editorStylePrefs?.canvasSize || null,
       },
     };
     setSettings(mergedSettings);

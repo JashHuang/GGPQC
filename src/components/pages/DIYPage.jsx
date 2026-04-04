@@ -17,6 +17,7 @@ const DIYPage = ({ settings, onComplete }) => {
           textColorType: initialData?.data?.settings?.textColorType,
           editorScene: initialData?.editorScene || initialData?.data?.editorScene || null,
           rememberedStyle: settings?.editorStylePrefs || null,
+          typographyMode: settings?.typographyMode || 'balanced',
         },
       });
       window.dispatchEvent(event);
