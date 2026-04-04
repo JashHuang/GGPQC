@@ -630,19 +630,48 @@ const selectPalette = (background, blessingId, safeTone) => {
   return group[index];
 };
 
+const STROKE_ANGLES = [
+  0, Math.PI / 4, Math.PI / 2, (3 * Math.PI) / 4,
+  Math.PI, (5 * Math.PI) / 4, (3 * Math.PI) / 2, (7 * Math.PI) / 4,
+];
+
+const drawSmoothStrokeText = (ctx, text, x, y, strokeColor, strokeWidth) => {
+  if (strokeWidth > 4) {
+    ctx.save();
+    ctx.shadowColor = strokeColor;
+    ctx.shadowBlur = strokeWidth * 1.5;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = strokeColor;
+    ctx.strokeText(text, x, y);
+    ctx.restore();
+    return;
+  }
+
+  const passes = strokeWidth > 2 ? 12 : 8;
+  const angleStep = (Math.PI * 2) / passes;
+  const offset = strokeWidth * 0.5;
+
+  ctx.save();
+  ctx.strokeStyle = strokeColor;
+  ctx.lineWidth = strokeWidth;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  for (let i = 0; i < passes; i++) {
+    const angle = i * angleStep;
+    ctx.strokeText(text, x + Math.cos(angle) * offset, y + Math.sin(angle) * offset);
+  }
+
+  ctx.restore();
+};
+
 const drawLines = (ctx, lines, x, startY, lineHeight, styles) => {
   const { fillColor, strokeColor, strokeWidth } = styles;
   lines.forEach((line, index) => {
     const y = startY + (index * lineHeight);
     if (strokeColor && strokeWidth > 0) {
-      ctx.save();
-      ctx.shadowColor = strokeColor;
-      ctx.shadowBlur = strokeWidth * 1.5;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-      ctx.strokeStyle = strokeColor;
-      ctx.strokeText(line, x, y);
-      ctx.restore();
+      drawSmoothStrokeText(ctx, line, x, y, strokeColor, strokeWidth);
     }
     ctx.fillStyle = fillColor;
     ctx.fillText(line, x, y);
@@ -718,14 +747,7 @@ const drawLegacyHorizontalText = (ctx, block, fontSize) => {
     const x = block.x + padding;
     const y = block.y + padding + index * fontSize * 1.28;
     if (block.hasStroke !== false) {
-      ctx.save();
-      ctx.shadowColor = block.strokeColor || '#000000';
-      ctx.shadowBlur = ctx.lineWidth * 1.5;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-      ctx.strokeStyle = block.strokeColor || '#000000';
-      ctx.strokeText(line, x, y);
-      ctx.restore();
+      drawSmoothStrokeText(ctx, line, x, y, block.strokeColor || '#000000', ctx.lineWidth);
     }
     ctx.fillStyle = block.fillColor || '#ffffff';
     ctx.fillText(line, x, y);
@@ -755,14 +777,7 @@ const drawLegacyVerticalText = (ctx, block, fontSize) => {
     if (x < block.x + padding) return;
 
     if (block.hasStroke !== false) {
-      ctx.save();
-      ctx.shadowColor = block.strokeColor || '#000000';
-      ctx.shadowBlur = ctx.lineWidth * 1.5;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-      ctx.strokeStyle = block.strokeColor || '#000000';
-      ctx.strokeText(char, x, y);
-      ctx.restore();
+      drawSmoothStrokeText(ctx, char, x, y, block.strokeColor || '#000000', ctx.lineWidth);
     }
     ctx.fillStyle = block.fillColor || '#ffffff';
     ctx.fillText(char, x, y);

@@ -39,6 +39,7 @@ const USER_SETTINGS_STORAGE_KEY = 'gm-v5-user-settings-v1';
 const ACTIVE_USER_STORAGE_KEY = 'gm-v5-active-user-v1';
 const DISABLED_FONTS_STORAGE_KEY = 'gm-v5-disabled-fonts-v1';
 const THEME_STORAGE_KEY = 'gm-v5-theme-v1';
+const CANVAS_STATE_STORAGE_KEY = 'gm-v5-canvas-state-v1';
 const DEFAULT_USER_NAME = '預設用戶';
 const DEFAULT_USER_STYLE_SETTINGS = {
   greetingFont: BUILTIN_FONTS[0].name,
@@ -83,6 +84,68 @@ const resolveCanvasFontFamily = (fontValue) => {
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 const cloneBlocks = (blocks) => blocks.map((b) => ({ ...b }));
 const HEX_COLOR_REGEX = /^#([a-fA-F0-9]{6})$/;
+
+const drawSmoothStrokeText = (ctx, text, x, y, strokeColor, strokeWidth) => {
+  if (strokeWidth > 4) {
+    ctx.save();
+    ctx.shadowColor = strokeColor;
+    ctx.shadowBlur = strokeWidth * 1.5;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = strokeColor;
+    ctx.strokeText(text, x, y);
+    ctx.restore();
+    return;
+  }
+
+  const passes = strokeWidth > 2 ? 12 : 8;
+  const angleStep = (Math.PI * 2) / passes;
+  const offset = strokeWidth * 0.5;
+
+  ctx.save();
+  ctx.strokeStyle = strokeColor;
+  ctx.lineWidth = strokeWidth;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  for (let i = 0; i < passes; i++) {
+    const angle = i * angleStep;
+    ctx.strokeText(text, x + Math.cos(angle) * offset, y + Math.sin(angle) * offset);
+  }
+
+  ctx.restore();
+};
+
+const clampBlockInCanvas = (block, canvasWidth, canvasHeight) => {
+  const minDim = 40;
+  let { x, y, width, height } = block;
+  width = Math.max(minDim, width);
+  height = Math.max(minDim, height);
+  if (width > canvasWidth) { width = canvasWidth; x = 0; }
+  if (height > canvasHeight) { height = canvasHeight; y = 0; }
+  if (x < 0) x = 0;
+  if (y < 0) y = 0;
+  if (x + width > canvasWidth) x = Math.max(0, canvasWidth - width);
+  if (y + height > canvasHeight) y = Math.max(0, canvasHeight - height);
+  return { ...block, x, y, width, height };
+};
+
+const saveCanvasStateToStorage = (state) => {
+  try {
+    localStorage.setItem(CANVAS_STATE_STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.error('儲存 canvas 狀態失敗:', e);
+  }
+};
+
+const loadCanvasStateFromStorage = () => {
+  try {
+    const stored = localStorage.getItem(CANVAS_STATE_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+};
 
 const toHexColor = (value, fallback = '#000000') => {
   if (!value) return fallback;
@@ -185,6 +248,7 @@ const GoodMorningGeneratorV5 = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [primaryId, setPrimaryId] = useState(null);
   const [guideLines, setGuideLines] = useState({ x: null, y: null });
+  const [restoredFromStorage, setRestoredFromStorage] = useState(false);
 
   const [customFonts, setCustomFonts] = useState([]);
   const [isFontManagerOpen, setIsFontManagerOpen] = useState(false);
@@ -203,6 +267,22 @@ const GoodMorningGeneratorV5 = () => {
   const maxZoom = 250;
   const minZoom = 10;
   const snapThreshold = 10;
+
+  // When canvas size changes, ensure all blocks are within bounds
+  useEffect(() => {
+    if (textBlocks.length === 0) return;
+    let needsClamp = false;
+    const clamped = textBlocks.map((b) => {
+      const next = clampBlockInCanvas(b, canvasSize.width, canvasSize.height);
+      if (next.x !== b.x || next.y !== b.y || next.width !== b.width || next.height !== b.height) {
+        needsClamp = true;
+      }
+      return next;
+    });
+    if (needsClamp) {
+      setTextBlocks(clamped);
+    }
+  }, [canvasSize.width, canvasSize.height]);
 
   const fitToScreen = useCallback(() => {
     if (!wrapRef.current || !canvasRef.current) return;
@@ -278,6 +358,22 @@ const GoodMorningGeneratorV5 = () => {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
+  // Auto-save canvas state to localStorage whenever it changes
+  const canvasStateRef = useRef({ textBlocks: [], canvasSize: { width: 1080, height: 1080 }, backgroundImage: null, signatureImage: null, signaturePresetLayout: null });
+  canvasStateRef.current = { textBlocks, canvasSize, backgroundImage: backgroundImage?.src || null, signatureImage: signatureImage?.src || null, signaturePresetLayout };
+
+  useEffect(() => {
+    if (!settingsReady) return;
+    const state = canvasStateRef.current;
+    saveCanvasStateToStorage({
+      textBlocks: cloneBlocks(state.textBlocks),
+      canvasSize: { ...state.canvasSize },
+      backgroundImage: state.backgroundImage,
+      signatureImage: state.signatureImage,
+      signaturePresetLayout: state.signaturePresetLayout ? { ...state.signaturePresetLayout } : null,
+    });
+  }, [textBlocks, canvasSize, backgroundImage, signatureImage, signaturePresetLayout, settingsReady]);
+
   // Load disabled fonts
   useEffect(() => {
     const stored = localStorage.getItem(DISABLED_FONTS_STORAGE_KEY);
@@ -310,6 +406,48 @@ const GoodMorningGeneratorV5 = () => {
       }
     };
     loadCustomFonts();
+  }, []);
+
+  // Restore canvas state from localStorage on mount (only if no V6 data has been received yet)
+  useEffect(() => {
+    const stored = loadCanvasStateFromStorage();
+    if (!stored) return;
+
+    if (stored.canvasSize) {
+      setCanvasSize(stored.canvasSize);
+    }
+
+    if (Array.isArray(stored.textBlocks) && stored.textBlocks.length > 0) {
+      const cw = stored.canvasSize?.width || 1080;
+      const ch = stored.canvasSize?.height || 1080;
+      const clampedBlocks = stored.textBlocks.map((b) => clampBlockInCanvas(b, cw, ch));
+      setTextBlocks(clampedBlocks);
+      const firstId = clampedBlocks[0]?.id || null;
+      setSelectedIds(firstId ? [firstId] : []);
+      setPrimaryId(firstId);
+    }
+
+    if (stored.signaturePresetLayout) {
+      setSignaturePresetLayout(stored.signaturePresetLayout);
+    }
+
+    if (stored.backgroundImage) {
+      const bgImg = new Image();
+      bgImg.onload = () => {
+        setBackgroundImage(bgImg);
+      };
+      bgImg.src = stored.backgroundImage;
+    }
+
+    if (stored.signatureImage) {
+      const sigImg = new Image();
+      sigImg.onload = () => {
+        setSignatureImage(sigImg);
+      };
+      sigImg.src = stored.signatureImage;
+    }
+
+    setRestoredFromStorage(true);
   }, []);
 
   const handleTogglePresetFont = (fontName) => {
@@ -346,6 +484,9 @@ const GoodMorningGeneratorV5 = () => {
         rememberedStyle,
         typographyMode,
       } = e.detail;
+
+      // V6 data takes priority over localStorage - clear restored flag
+      setRestoredFromStorage(false);
 
       const TYPOGRAPHY_PRESETS = {
         large: {
@@ -923,14 +1064,7 @@ const GoodMorningGeneratorV5 = () => {
       const y = b.y + p + i * fontSize * 1.28;
 
       if (b.hasStroke !== false) {
-        ctx.save();
-        ctx.shadowColor = b.strokeColor;
-        ctx.shadowBlur = sw * 1.5;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-        ctx.strokeStyle = b.strokeColor;
-        ctx.strokeText(l, x, y);
-        ctx.restore();
+        drawSmoothStrokeText(ctx, l, x, y, b.strokeColor, sw);
       }
 
       ctx.fillStyle = b.fillColor;
@@ -956,14 +1090,7 @@ const GoodMorningGeneratorV5 = () => {
       if (x < b.x + p) return;
 
       if (b.hasStroke !== false) {
-        ctx.save();
-        ctx.shadowColor = b.strokeColor;
-        ctx.shadowBlur = sw * 1.5;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-        ctx.strokeStyle = b.strokeColor;
-        ctx.strokeText(char, x, y);
-        ctx.restore();
+        drawSmoothStrokeText(ctx, char, x, y, b.strokeColor, sw);
       }
 
       ctx.fillStyle = b.fillColor;
