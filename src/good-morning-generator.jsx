@@ -362,17 +362,29 @@ const GoodMorningGeneratorV5 = () => {
   const canvasStateRef = useRef({ textBlocks: [], canvasSize: { width: 1080, height: 1080 }, backgroundImage: null, signatureImage: null, signaturePresetLayout: null });
   canvasStateRef.current = { textBlocks, canvasSize, backgroundImage: backgroundImage?.src || null, signatureImage: signatureImage?.src || null, signaturePresetLayout };
 
+  // Save canvas state to localStorage on demand (triggered by V6 via custom event)
   useEffect(() => {
-    if (!settingsReady) return;
-    const state = canvasStateRef.current;
-    saveCanvasStateToStorage({
-      textBlocks: cloneBlocks(state.textBlocks),
-      canvasSize: { ...state.canvasSize },
-      backgroundImage: state.backgroundImage,
-      signatureImage: state.signatureImage,
-      signaturePresetLayout: state.signaturePresetLayout ? { ...state.signaturePresetLayout } : null,
-    });
-  }, [textBlocks, canvasSize, backgroundImage, signatureImage, signaturePresetLayout, settingsReady]);
+    const handleSaveRequest = (e) => {
+      const requestId = e.detail?.requestId;
+      if (!requestId) return;
+      const state = canvasStateRef.current;
+      saveCanvasStateToStorage({
+        textBlocks: cloneBlocks(state.textBlocks),
+        canvasSize: { ...state.canvasSize },
+        backgroundImage: state.backgroundImage,
+        signatureImage: state.signatureImage,
+        signaturePresetLayout: state.signaturePresetLayout ? { ...state.signaturePresetLayout } : null,
+      });
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new CustomEvent('v6-editor-save-state-response', {
+          detail: { requestId },
+        }));
+      });
+    };
+
+    window.addEventListener('v6-editor-save-state-request', handleSaveRequest);
+    return () => window.removeEventListener('v6-editor-save-state-request', handleSaveRequest);
+  }, []);
 
   // Load disabled fonts
   useEffect(() => {
@@ -425,6 +437,12 @@ const GoodMorningGeneratorV5 = () => {
       const firstId = clampedBlocks[0]?.id || null;
       setSelectedIds(firstId ? [firstId] : []);
       setPrimaryId(firstId);
+
+      // 同步 sidebar state 以匹配 textBlocks 中的實際文字
+      const greetingBlock = clampedBlocks.find((b) => b.type === 'greeting');
+      const wisdomBlock = clampedBlocks.find((b) => b.type === 'wisdom');
+      if (greetingBlock?.text) setGreetingText(greetingBlock.text);
+      if (wisdomBlock?.text) setWisdomText(wisdomBlock.text);
     }
 
     if (stored.signaturePresetLayout) {
@@ -485,6 +503,13 @@ const GoodMorningGeneratorV5 = () => {
         typographyMode,
       } = e.detail;
 
+      // 嘗試從 localStorage 恢復上次用戶設定
+      const stored = loadCanvasStateFromStorage();
+      const storedBlocks = Array.isArray(stored?.textBlocks) && stored.textBlocks.length > 0 ? stored.textBlocks : null;
+      const storedCanvasSize = stored?.canvasSize || null;
+      const storedSignatureImage = stored?.signatureImage || null;
+      const storedSignaturePresetLayout = stored?.signaturePresetLayout || null;
+
       // V6 data takes priority over localStorage - clear restored flag
       setRestoredFromStorage(false);
 
@@ -522,6 +547,8 @@ const GoodMorningGeneratorV5 = () => {
 
       if (rememberedStyle?.signature) {
         setSignaturePresetLayout(rememberedStyle.signature);
+      } else if (storedSignaturePresetLayout) {
+        setSignaturePresetLayout(storedSignaturePresetLayout);
       }
 
       if (!background) return;
@@ -574,14 +601,26 @@ const GoodMorningGeneratorV5 = () => {
 
       if (Array.isArray(editorScene?.textBlocks) && editorScene.textBlocks.length > 0) {
         const sceneImageBlock = editorScene.textBlocks.find((b) => b.type === 'signature' && b.data);
-        const handleScene = (img) => {
-          pushHistory(textBlocks);
-          setBackgroundImage(img);
-          setCanvasSize(editorScene.canvasSize || { width: img.width || canvasWidth, height: img.height || canvasHeight });
-          setTextBlocks(editorScene.textBlocks);
-          const firstId = editorScene.textBlocks[0]?.id || null;
+        const applySceneBlocks = (clampedBlocks) => {
+          const firstId = clampedBlocks[0]?.id || null;
           setSelectedIds(firstId ? [firstId] : []);
           setPrimaryId(firstId);
+          setTextBlocks(clampedBlocks);
+
+          // 同步 sidebar state 以匹配 textBlocks 中的實際文字
+          const greetingBlock = clampedBlocks.find((b) => b.type === 'greeting');
+          const wisdomBlock = clampedBlocks.find((b) => b.type === 'wisdom');
+          if (greetingBlock?.text) setGreetingText(greetingBlock.text);
+          if (wisdomBlock?.text) setWisdomText(wisdomBlock.text);
+        };
+
+        const handleScene = (img) => {
+          const targetCanvasSize = editorScene.canvasSize || { width: img.width || canvasWidth, height: img.height || canvasHeight };
+          pushHistory(textBlocks);
+          setBackgroundImage(img);
+          setCanvasSize(targetCanvasSize);
+          const clampedBlocks = editorScene.textBlocks.map((b) => clampBlockInCanvas(b, targetCanvasSize.width, targetCanvasSize.height));
+          applySceneBlocks(clampedBlocks);
           if (sceneImageBlock?.data) {
             const sig = new Image();
             sig.onload = () => setSignatureImage(sig);
@@ -594,21 +633,19 @@ const GoodMorningGeneratorV5 = () => {
         const sceneBg = new Image();
         sceneBg.onload = () => handleScene(sceneBg);
         sceneBg.onerror = () => {
+          const targetCanvasSize = editorScene.canvasSize || { width: canvasWidth, height: canvasHeight };
           setBackgroundImage(null);
-          setCanvasSize(editorScene.canvasSize || { width: canvasWidth, height: canvasHeight });
-          setTextBlocks(editorScene.textBlocks);
-          const firstId = editorScene.textBlocks[0]?.id || null;
-          setSelectedIds(firstId ? [firstId] : []);
-          setPrimaryId(firstId);
+          setCanvasSize(targetCanvasSize);
+          const clampedBlocks = editorScene.textBlocks.map((b) => clampBlockInCanvas(b, targetCanvasSize.width, targetCanvasSize.height));
+          applySceneBlocks(clampedBlocks);
         };
         const sceneBackgroundSrc = editorScene.backgroundDataUrl || background?.imageUrl || null;
         if (!sceneBackgroundSrc) {
+          const targetCanvasSize = editorScene.canvasSize || { width: canvasWidth, height: canvasHeight };
           setBackgroundImage(null);
-          setCanvasSize(editorScene.canvasSize || { width: canvasWidth, height: canvasHeight });
-          setTextBlocks(editorScene.textBlocks);
-          const firstId = editorScene.textBlocks[0]?.id || null;
-          setSelectedIds(firstId ? [firstId] : []);
-          setPrimaryId(firstId);
+          setCanvasSize(targetCanvasSize);
+          const clampedBlocks = editorScene.textBlocks.map((b) => clampBlockInCanvas(b, targetCanvasSize.width, targetCanvasSize.height));
+          applySceneBlocks(clampedBlocks);
           return;
         }
         sceneBg.src = sceneBackgroundSrc;
@@ -622,6 +659,8 @@ const GoodMorningGeneratorV5 = () => {
         setTextBlocks(fallbackBlocks);
         setSelectedIds(['v6-greeting']);
         setPrimaryId('v6-greeting');
+        setGreetingText('早安');
+        setWisdomText(blessing?.text || '美好的一天，順心如意');
       };
 
       if (background.imageUrl) {
@@ -633,6 +672,8 @@ const GoodMorningGeneratorV5 = () => {
           setTextBlocks(fallbackBlocks);
           setSelectedIds(['v6-greeting']);
           setPrimaryId('v6-greeting');
+          setGreetingText('早安');
+          setWisdomText(blessing?.text || '美好的一天，順心如意');
         };
         img.src = background.imageUrl;
       } else {
@@ -640,6 +681,8 @@ const GoodMorningGeneratorV5 = () => {
         setTextBlocks(fallbackBlocks);
         setSelectedIds(['v6-greeting']);
         setPrimaryId('v6-greeting');
+        setGreetingText('早安');
+        setWisdomText(blessing?.text || '美好的一天，順心如意');
       }
     };
 

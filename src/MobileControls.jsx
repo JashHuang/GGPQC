@@ -310,15 +310,25 @@ const MobileControls = ({
                 刪除簽名
               </button>
             ) : (
-              [
-                { id: 'content', label: '文字內容', icon: '📝' },
-                { id: 'font', label: '字型', icon: 'Aa' },
-                { id: 'weight', label: '字重', icon: '粗' },
-                { id: 'color', label: '字型顏色', icon: '🎨' },
-                { id: 'stroke', label: '描邊顏色', icon: '🖌️' },
-                { id: 'layout', label: '直立排版', icon: '↕️' },
-                { id: 'delete', label: '刪除', icon: '🗑️' },
-              ].map(tb => (
+              <>
+                {block?.type === 'wisdom' && (
+                  <button
+                    className="px-4 py-2 text-sm font-bold border rounded-lg flex-shrink-0 flex items-center gap-1 transition-colors bg-white text-gray-600 border-gray-200 active:bg-gray-100"
+                    onClick={onGenerateRandomQuote}
+                  >
+                    <span>🔄</span>
+                    換一句
+                  </button>
+                )}
+                {[
+                  { id: 'content', label: '文字內容', icon: '📝' },
+                  { id: 'font', label: '字型', icon: 'Aa' },
+                  { id: 'weight', label: '字重', icon: '粗' },
+                  { id: 'color', label: '字型顏色', icon: '🎨' },
+                  { id: 'stroke', label: '描邊顏色', icon: '🖌️' },
+                  { id: 'layout', label: '直立排版', icon: '↕️' },
+                  { id: 'delete', label: '刪除', icon: '🗑️' },
+                ].map(tb => (
                 <button
                   key={tb.id}
                   className={`px-4 py-2 text-sm font-bold border rounded-lg flex-shrink-0 flex items-center gap-1 transition-colors ${tb.id === 'delete' ? 'bg-red-50 text-red-600 border-red-200' : (activeEditTool === tb.id ? 'bg-[#b46b2b] text-white border-[#b46b2b]' : 'bg-white text-gray-600 border-gray-200')}`}
@@ -338,7 +348,8 @@ const MobileControls = ({
                   <span className={tb.id === 'font' ? 'font-serif' : ''}>{tb.icon}</span>
                   {tb.label}
                 </button>
-              ))
+              ))}
+              </>
             )}
           </div>
         ) : (

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import PrimaryButton from '../ui/PrimaryButton';
 import V5Editor from '../../good-morning-generator';
@@ -59,7 +59,24 @@ const DIYPage = ({ settings, onComplete }) => {
     }, 600);
   });
 
+  const saveEditorState = () => new Promise((resolve) => {
+    const requestId = `save-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const onResponse = (e) => {
+      if (e.detail?.requestId !== requestId) return;
+      window.removeEventListener('v6-editor-save-state-response', onResponse);
+      resolve();
+    };
+    window.addEventListener('v6-editor-save-state-response', onResponse);
+    window.dispatchEvent(new CustomEvent('v6-editor-save-state-request', { detail: { requestId } }));
+
+    setTimeout(() => {
+      window.removeEventListener('v6-editor-save-state-response', onResponse);
+      resolve();
+    }, 600);
+  });
+
   const handleComplete = async () => {
+    await saveEditorState();
     await clearEditorSelection();
     const editorScene = await requestEditorScene();
     const canvas = document.querySelector('.gm5-page canvas');
@@ -72,6 +89,19 @@ const DIYPage = ({ settings, onComplete }) => {
       });
     }
   };
+
+  const handleBack = useCallback(async () => {
+    await saveEditorState();
+    window.history.back();
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveEditorState();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   return (
     <div className="gm6-diy">
