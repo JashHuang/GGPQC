@@ -12,12 +12,13 @@ const DIYPage = ({ settings, onComplete }) => {
       const event = new CustomEvent('v6-editor-init', {
         detail: {
           background: initialData?.background || null,
-          blessing: initialData?.data?.blessing,
+          blessing: initialData?.data?.blessing || initialData?.data?.textBlocks?.[0]?.text || null,
           textColor: initialData?.data?.settings?.textColor,
           textColorType: initialData?.data?.settings?.textColorType,
           editorScene: initialData?.editorScene || initialData?.data?.editorScene || null,
           rememberedStyle: settings?.editorStylePrefs || null,
           typographyMode: settings?.typographyMode || 'balanced',
+          isFromCompleted: initialData?.source === 'diy',
         },
       });
       window.dispatchEvent(event);

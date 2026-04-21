@@ -9,6 +9,7 @@ import BottomNav from './components/layout/BottomNav';
 import { useAutoGenerate } from './hooks/useAutoGenerate';
 import { registerServiceWorker } from './sw-register';
 import { addOnlineStatusListener } from './utils/cacheManager';
+import { normalizeGeneratedData, getValidationError } from './utils/dataValidator';
 import './styles/v6-tokens.css';
 import './v6.css';
 
@@ -132,12 +133,14 @@ const V6Content = () => {
   const handleAutoGenerate = React.useCallback((imageData, data) => {
     setGeneratedImage(imageData);
     setGeneratedData(data);
-    navigate('/completed');
+    navigate('/completed', { state: { from: '/auto-generate' } });
   }, [navigate]);
 
   const handleRegenerate = React.useCallback(async () => {
-    if (!generatedData) {
-      navigate('/auto-generate');
+    const error = getValidationError(generatedData);
+    if (error) {
+      alert('無法取得生成資料，請重新產生早安圖');
+      navigate('/auto-generate', { replace: true });
       return;
     }
 
@@ -145,17 +148,20 @@ const V6Content = () => {
     try {
       const result = await regenerateBlessingOnly(generatedData, settings);
       setGeneratedImage(result.imageData);
-      setGeneratedData(result);
+      setGeneratedData(normalizeGeneratedData(result));
     } catch (err) {
       console.error('Regenerate failed:', err);
+      alert('產生失敗，請稍後再試');
     } finally {
       setIsRegenerating(false);
     }
   }, [generatedData, settings, regenerateBlessingOnly, navigate]);
 
   const handleChangeBackground = React.useCallback(async () => {
-    if (!generatedData) {
-      navigate('/auto-generate');
+    const error = getValidationError(generatedData);
+    if (error) {
+      alert('無法取得生成資料，請重新產生早安圖');
+      navigate('/auto-generate', { replace: true });
       return;
     }
 
@@ -163,9 +169,10 @@ const V6Content = () => {
     try {
       const result = await regenerateBackgroundOnly(generatedData, settings);
       setGeneratedImage(result.imageData);
-      setGeneratedData(result);
+      setGeneratedData(normalizeGeneratedData(result));
     } catch (err) {
       console.error('Change background failed:', err);
+      alert('更換背景失敗，請稍後再試');
     } finally {
       setIsRegenerating(false);
     }
@@ -186,24 +193,38 @@ const V6Content = () => {
     setSettings(mergedSettings);
     saveSettings(mergedSettings);
 
-    setGeneratedImage(imageData);
-    setGeneratedData((prev) => ({
-      ...(prev || {}),
+    const normalizedData = normalizeGeneratedData({
+      ...(generatedData || {}),
       ...(diyData || {}),
       imageData,
-      editorScene: diyData?.editorScene || prev?.editorScene || null,
-    }));
-    navigate('/completed');
-  }, [navigate, settings]);
+      source: 'diy',
+      createdAt: Date.now(),
+    });
+    setGeneratedImage(imageData);
+    setGeneratedData(normalizedData);
+    navigate('/completed', { state: { from: '/diy' } });
+  }, [navigate, settings, generatedData]);
 
   const handleDIYWithCurrent = React.useCallback(() => {
-    navigate('/diy', { state: { 
+    const diyState = {
       imageData: generatedImage, 
       data: generatedData,
       background: generatedData?.background,
       editorScene: generatedData?.editorScene || null,
-    } });
-  }, [generatedImage, generatedData, navigate]);
+      source: generatedData?.source || 'auto',
+      previousPath: location.pathname,
+    };
+    navigate('/diy', { state: diyState });
+  }, [generatedImage, generatedData, navigate, location.pathname]);
+
+  const handleBack = React.useCallback(() => {
+    const from = location.state?.from;
+    if (from && from !== '/') {
+      navigate(from, { replace: true });
+    } else {
+      navigate('/', { replace: true });
+    }
+  }, [location.state, navigate]);
 
   const hideBottomNav = ['/auto-generate', '/completed', '/diy'].includes(location.pathname);
   const showBackButton = ['/completed', '/diy'].includes(location.pathname);
@@ -243,7 +264,7 @@ const V6Content = () => {
                 onRegenerate={handleRegenerate}
                 onChangeBackground={handleChangeBackground}
                 onDIY={handleDIYWithCurrent}
-                onHome={() => navigate('/')}
+                onHome={() => navigate('/', { state: { from: '/completed' } })}
               />
             } 
           />
@@ -271,7 +292,7 @@ const V6Content = () => {
         {showBackButton && (
           <button 
             className="gm6-back-btn"
-            onClick={() => navigate('/')}
+            onClick={handleBack}
           >
             ← 返回
           </button>
@@ -281,8 +302,9 @@ const V6Content = () => {
           <BottomNav 
             currentPath={location.pathname}
             onHome={() => navigate('/')}
-            onMyName={() => navigate('/settings')}
-            onSettings={() => navigate('/settings')}
+            onMyName={() => navigate('/settings', { state: { tab: 'name' } })}
+            onSettings={() => navigate('/settings', { state: { tab: 'settings' } })}
+            activeTab={location.state?.tab}
           />
         )}
       </div>

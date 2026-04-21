@@ -651,3 +651,25 @@
   margin-top: 4px;
   opacity: 0.8;
 }
+
+/* V5 編輯器樣式隔離 */
+.gm6-diy .gm5-page {
+  position: relative;
+  z-index: 1;
+}
+
+.gm6-diy .gm5-page canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+.gm6-diy .gm5-controls {
+  position: relative;
+  z-index: 10;
+}
+
+/* 確保 V6 完成按鈕不被 V5 樣式覆蓋 */
+.gm6-diy-complete-wrap {
+  position: relative;
+  z-index: 20;
+}

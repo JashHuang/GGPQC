@@ -1,6 +1,8 @@
 import React from 'react';
 
-const BottomNav = ({ currentPath, onHome, onMyName, onSettings }) => {
+const BottomNav = ({ currentPath, onHome, onMyName, onSettings, activeTab }) => {
+  const isSettingsActive = currentPath === '/settings';
+
   return (
     <nav className="gm6-bottom-nav">
       <button 
@@ -12,7 +14,7 @@ const BottomNav = ({ currentPath, onHome, onMyName, onSettings }) => {
       </button>
 
       <button
-        className={`gm6-bottom-nav-item ${currentPath === '/settings' ? 'is-active' : ''}`}
+        className={`gm6-bottom-nav-item ${isSettingsActive && activeTab === 'name' ? 'is-active' : ''}`}
         onClick={onMyName}
       >
         <span className="gm6-bottom-nav-icon">🪪</span>
@@ -20,7 +22,7 @@ const BottomNav = ({ currentPath, onHome, onMyName, onSettings }) => {
       </button>
       
       <button 
-        className={`gm6-bottom-nav-item ${currentPath === '/settings' ? 'is-active' : ''}`}
+        className={`gm6-bottom-nav-item ${isSettingsActive && activeTab !== 'name' ? 'is-active' : ''}`}
         onClick={onSettings}
       >
         <span className="gm6-bottom-nav-icon">⚙️</span>
